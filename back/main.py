@@ -1,0 +1,114 @@
+import json
+from contextlib import asynccontextmanager
+from datetime import datetime
+from pathlib import Path
+
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+
+from auth import hash_password
+from database import Base, SessionLocal, engine
+from models import Log, Manager
+from routers import auth_router, donations, logs, pictures
+
+FRONT_DIR = Path(__file__).resolve().parent.parent / "front"
+UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Создаём таблицы и админа по умолчанию при первом запуске
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+    try:
+        if db.query(Manager).count() == 0:
+            db.add(Manager(login="admin", password_hash=hash_password("admin123")))
+            db.commit()
+            print(">>> Создан админ по умолчанию: admin / admin123 — смени пароль!")
+    finally:
+        db.close()
+    yield
+
+
+app = FastAPI(title="Gallery API", lifespan=lifespan)
+
+# CORS: для разработки. В продакшене замени "*" на свой домен.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# API-роутеры
+app.include_router(auth_router.router)
+app.include_router(pictures.router)
+app.include_router(donations.router)
+app.include_router(logs.router)
+
+# Загруженные картинки доступны по /uploads/<файл>
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+
+def _redact(text: str) -> str:
+    """Прячем пароли и карты в логе."""
+    try:
+        data = json.loads(text)
+        if isinstance(data, dict):
+            for key in ("password", "card"):
+                if key in data:
+                    data[key] = "***"
+            return json.dumps(data, ensure_ascii=False)[:2000]
+    except (ValueError, TypeError):
+        pass
+    return text[:2000]
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    body = b""
+    if request.url.path.startswith("/api"):
+        try:
+            body = await request.body()
+        except Exception:
+            body = b""
+
+    response = await call_next(request)
+
+    # Логируем только /api, чтобы статика не засоряла базу
+    if request.url.path.startswith("/api"):
+        db = SessionLocal()
+        try:
+            db.add(Log(
+                text=f"{request.method} → {response.status_code}",
+                time=datetime.now(),
+                url=request.url.path + (f"?{request.url.query}" if request.url.query else ""),
+                request=_redact(body.decode(errors="ignore")),
+                response=f"HTTP {response.status_code}",
+            ))
+            db.commit()
+        except Exception:
+            db.rollback()
+        finally:
+            db.close()
+    return response
+
+
+@app.get("/api/health", tags=["Сервис"])
+def health():
+    return {"status": "ok", "time": datetime.now().isoformat()}
+
+
+# ---------- Раздача фронтенда из папки front/ ----------
+@app.get("/{full_path:path}", include_in_schema=False)
+async def serve_frontend(full_path: str):
+    candidate = (FRONT_DIR / full_path).resolve()
+    if candidate.is_file() and candidate.is_relative_to(FRONT_DIR):
+        return FileResponse(candidate)
+    index = FRONT_DIR / "index.html"
+    if index.is_file():
+        return FileResponse(index)
+    return JSONResponse({"detail": "В папке front/ нет index.html"}, status_code=404)
