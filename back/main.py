@@ -111,4 +111,4 @@ async def serve_frontend(full_path: str):
     index = FRONT_DIR / "index.html"
     if index.is_file():
         return FileResponse(index)
-    return JSONResponse({"detail": "В папке front/ нет index.html"}, status_code=404)
+        return JSONResponse({"status": "ok", "message": "API работает, документация на /docs"})
