@@ -13,7 +13,19 @@ from database import Base, SessionLocal, engine
 from models import Log, Manager
 from routers import auth_router, donations, logs, pictures
 
-FRONT_DIR = Path(__file__).resolve().parent.parent / "front"
+FRONT_DIR = next(
+    (
+        path
+        for path in (
+            Path(__file__).resolve().parent.parent / "front",
+            Path(__file__).resolve().parent / "front",
+            Path("/app/front"),
+        )
+        if path.exists()
+    ),
+    Path("/app/front"),
+)
+FRONT_BUILD_DIR = FRONT_DIR / "dist"
 UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
@@ -105,10 +117,11 @@ def health():
 # ---------- Раздача фронтенда из папки front/ ----------
 @app.get("/{full_path:path}", include_in_schema=False)
 async def serve_frontend(full_path: str):
-    candidate = (FRONT_DIR / full_path).resolve()
-    if candidate.is_file() and candidate.is_relative_to(FRONT_DIR):
+    base_dir = FRONT_BUILD_DIR if FRONT_BUILD_DIR.exists() and FRONT_BUILD_DIR.is_dir() else FRONT_DIR
+    candidate = (base_dir / full_path).resolve()
+    if candidate.is_file() and candidate.is_relative_to(base_dir):
         return FileResponse(candidate)
-    index = FRONT_DIR / "index.html"
+    index = base_dir / "index.html"
     if index.is_file():
         return FileResponse(index)
-        return JSONResponse({"status": "ok", "message": "API работает, документация на /docs"})
+    return JSONResponse({"status": "ok", "message": "API работает, документация на /docs"})
