@@ -5,3 +5,5 @@ pydantic>=2.7
 bcrypt>=4.1
 PyJWT>=2.8
 python-multipart>=0.0.9
+alembic>=1.13
+psycopg2-binary>=2.9
