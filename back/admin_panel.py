@@ -19,13 +19,14 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
 
-class AuthRequired(Exception):
-    """Открыта админ-страница без входа."""
-
-
 router = APIRouter(prefix="/admin", include_in_schema=False)
 
 
+@router.get("", include_in_schema=False)
+def admin_root_redirect():
+    return RedirectResponse("/admin/", status_code=302)
+
+
 def current_admin(request: Request) -> str:
     token = request.cookies.get("admin_token")
     if not token:
@@ -34,21 +35,6 @@ def current_admin(request: Request) -> str:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except PyJWTError:
         raise HTTPException(status_code=302, headers={"Location": "/admin/login"})
-    return payload.get("login", "")
-    prefix="/admin",
-    include_in_schema=False,
-    exception_handlers={AuthRequired: _to_login},
-
-
-
-def current_admin(request: Request) -> str:
-    token = request.cookies.get("admin_token")
-    if not token:
-        raise AuthRequired()
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    except PyJWTError:
-        raise AuthRequired()
     return payload.get("login", "")
 
 
