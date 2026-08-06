@@ -1,8 +1,10 @@
 import json
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -14,6 +16,11 @@ from models import Log, Manager
 from routers import auth_router, donations, logs, pictures
 
 from admin_panel import router as admin_router
+
+load_dotenv()
+
+ADMIN_LOGIN = os.getenv("ADMIN_LOGIN", "hand_admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "0h8Zkqv3wG29")
 
 FRONT_DIR = next(
     (
@@ -40,8 +47,8 @@ async def lifespan(app: FastAPI):
             db.add(Manager(login="admin", password_hash=hash_password("admin123")))
             db.commit()
             print(">>> Создан админ по умолчанию: admin / admin123 — смени пароль!")
-        if not db.query(Manager).filter(Manager.login == "hand_admin").first():
-            db.add(Manager(login="hand_admin", password_hash=hash_password("0h8Zkqv3wG29")))
+        if not db.query(Manager).filter(Manager.login == ADMIN_LOGIN).first():
+            db.add(Manager(login=ADMIN_LOGIN, password_hash=hash_password(ADMIN_PASSWORD)))
             db.commit()
     finally:
         db.close()
