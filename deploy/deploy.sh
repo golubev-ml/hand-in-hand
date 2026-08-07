@@ -8,7 +8,7 @@ FRONT_DIR="$ROOT_DIR/front"
 
 cd "$DEPLOY_DIR"
 
-echo "[1/4] Starting database..."
+echo "[1/5] Starting database..."
 docker compose up -d db
 
 for i in {1..30}; do
@@ -22,7 +22,32 @@ for i in {1..30}; do
   sleep 2
 done
 
-echo "[2/4] Running migrations..."
+compute_api_hash() {
+  find "$BACK_DIR" -type f \( -name '*.py' -o -name 'requirements.txt' \) -print0 \
+    | sort -z \
+    | xargs -0 sha256sum \
+    | sha256sum \
+    | awk '{print $1}'
+}
+
+API_HASH_FILE="$DEPLOY_DIR/.api_build_hash"
+CURRENT_API_HASH=$(compute_api_hash)
+PREVIOUS_API_HASH=""
+if [ -f "$API_HASH_FILE" ]; then
+  PREVIOUS_API_HASH=$(cat "$API_HASH_FILE")
+fi
+
+if [ "$CURRENT_API_HASH" != "$PREVIOUS_API_HASH" ]; then
+  echo "[2/5] API code changed; rebuilding API image..."
+  docker compose build api
+  echo "$CURRENT_API_HASH" > "$API_HASH_FILE"
+  STEP=3
+else
+  echo "[2/5] API code unchanged; using existing API image."
+  STEP=3
+fi
+
+echo "[${STEP}/5] Running migrations..."
 docker compose run --rm api sh -c 'cd /app && alembic upgrade head'
 
 echo "[3/4] Rebuilding and starting frontend..."
@@ -34,4 +59,5 @@ docker compose up -d --build --force-recreate api
 echo "Deployment completed."
 echo "Frontend: http://localhost:3000"
 echo "API: http://localhost:8000"
+echo "Admin: http://localhost:8000/admin"
 echo "Docs: http://localhost:8000/docs"
