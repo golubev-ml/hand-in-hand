@@ -918,17 +918,22 @@ export default function App() {
       >
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
           <button
-            onClick={() => scrollTo('hero')}
-            className="flex items-center gap-2.5"
-          >
-            <div className="w-8 h-8 bg-[#4A7C59] rounded-xl flex items-center justify-center text-white text-lg font-bold leading-none" style={{ fontFamily: 'var(--font-serif)' }}>
-              К
-            </div>
-            <span className="font-serif text-lg text-[#2C2416] leading-tight">
-              Краски<br />
-              <span className="text-[#4A7C59] text-sm">детства</span>
-            </span>
-          </button>
+  onClick={() => scrollTo('hero')}
+  className="flex items-center gap-2.5"
+>
+  <img
+    src="/logo.png"
+    alt="Логотип «Краски детства»"
+    className="w-10 h-10 rounded-full object-cover"
+  />
+  <span
+  className={`font-serif text-lg font-bold whitespace-nowrap transition-colors duration-300 ${
+    scrolled ? 'text-[#4A7C59]' : 'text-[#FEFAF4]'
+  }`}
+>
+  Краски детства
+</span>
+</button>
 
           <div className="hidden md:flex items-center gap-6">
             {[
