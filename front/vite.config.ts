@@ -10,12 +10,12 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src'),
+      '@': path.resolve(import.meta.dirname, './src'),
     },
   },
   server: {
     host: '0.0.0.0',
-    port: 8443,
+    port: 5173,
     // в разработке запросы к API уходят на бэкенд
     proxy: {
       '/api': 'http://localhost:8000',

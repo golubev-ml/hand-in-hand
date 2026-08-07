@@ -50,11 +50,11 @@ fi
 echo "[${STEP}/5] Running migrations..."
 docker compose run --rm api sh -c 'cd /app && alembic upgrade head'
 
-echo "[4/5] Starting frontend..."
-docker compose up -d frontend
+echo "[3/4] Rebuilding and starting frontend..."
+docker compose up -d --force-recreate frontend
 
-echo "[5/5] Starting API..."
-docker compose up -d api
+echo "[4/4] Restarting API..."
+docker compose up -d --build --force-recreate api
 
 echo "Deployment completed."
 echo "Frontend: http://localhost:3000"
