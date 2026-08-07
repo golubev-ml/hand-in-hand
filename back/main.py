@@ -1,8 +1,10 @@
 import json
+import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -12,6 +14,13 @@ from auth import hash_password
 from database import Base, SessionLocal, engine
 from models import Log, Manager
 from routers import auth_router, donations, logs, pictures
+
+from admin_panel import router as admin_router
+
+load_dotenv()
+
+ADMIN_LOGIN = os.getenv("ADMIN_LOGIN", "hand_admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "0h8Zkqv3wG29")
 
 FRONT_DIR = next(
     (
@@ -32,14 +41,15 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Создаём таблицы и админа по умолчанию при первом запуске
-    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         if db.query(Manager).count() == 0:
             db.add(Manager(login="admin", password_hash=hash_password("admin123")))
             db.commit()
             print(">>> Создан админ по умолчанию: admin / admin123 — смени пароль!")
+        if not db.query(Manager).filter(Manager.login == ADMIN_LOGIN).first():
+            db.add(Manager(login=ADMIN_LOGIN, password_hash=hash_password(ADMIN_PASSWORD)))
+            db.commit()
     finally:
         db.close()
     yield
@@ -60,6 +70,7 @@ app.include_router(auth_router.router)
 app.include_router(pictures.router)
 app.include_router(donations.router)
 app.include_router(logs.router)
+app.include_router(admin_router)
 
 # Загруженные картинки доступны по /uploads/<файл>
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
