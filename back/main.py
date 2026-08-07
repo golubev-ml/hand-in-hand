@@ -13,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from auth import hash_password
 from database import Base, SessionLocal, engine
 from models import Log, Manager
-from routers import auth_router, donations, logs, pictures
+from routers import auth_router, donations, logs, orders, pictures
 
 from admin_panel import router as admin_router
 
@@ -68,6 +68,7 @@ app.add_middleware(
 # API-роутеры
 app.include_router(auth_router.router)
 app.include_router(pictures.router)
+app.include_router(orders.router)
 app.include_router(donations.router)
 app.include_router(logs.router)
 app.include_router(admin_router)

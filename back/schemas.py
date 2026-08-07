@@ -54,6 +54,20 @@ class PictureOut(BaseModel):
 
 
 # ---------- Пожертвования ----------
+class OrderItem(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    img: str
+    story: str = ""
+    price: float = Field(ge=0)
+    qty: int = Field(default=1, ge=1)
+
+
+class OrderCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    email: str = Field(min_length=3, max_length=254)
+    items: list[OrderItem] = Field(min_length=1)
+
+
 class DonationCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     card: str = Field(min_length=12, max_length=25)
