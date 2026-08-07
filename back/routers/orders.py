@@ -20,7 +20,12 @@ def create_order(order: OrderCreate, db: Session = Depends(get_db)):
         total=total,
     )
     try:
-        send_email(order.email, "Краски детства — спасибо за вашу покупку!", html)
+        send_email(
+            order.email,
+            "Краски детства — спасибо за вашу покупку!",
+            html,
+            items=[i.model_dump() for i in order.items],
+        )
         sent = True
     except Exception as e:  # не ломаем заказ, если почта временно недоступна
         print(">>> Не удалось отправить письмо:", e)

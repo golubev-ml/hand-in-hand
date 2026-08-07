@@ -6,6 +6,8 @@ SMTP_HOST, SMTP_PORT, MAIL_FROM, BASE_URL.
 """
 import os
 import smtplib
+from pathlib import Path
+from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -13,6 +15,7 @@ SMTP_HOST = os.getenv("SMTP_HOST", "localhost")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "1025"))
 MAIL_FROM = os.getenv("MAIL_FROM", "noreply@kraski-detstva.ru")
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
 
 
 def _abs(url: str) -> str:
@@ -27,11 +30,16 @@ def _fmt(price: float) -> str:
 def build_order_html(name: str, items: list[dict], total: float) -> str:
     """Письмо о покупке: рисунок + рассказ + спасибо за пожертвование + контакты."""
     rows = ""
-    for it in items:
+    for index, it in enumerate(items):
+        image_src = (
+            f"cid:order-image-{index}"
+            if it["img"].startswith("/uploads/")
+            else _abs(it["img"])
+        )
         rows += f"""
       <tr>
         <td style="padding:16px 0;border-bottom:1px solid #E8DCC8;">
-          <img src="{_abs(it['img'])}" alt="{it['title']}" width="240"
+          <img src="{image_src}" alt="{it['title']}" width="240"
                style="border-radius:12px;display:block;margin-bottom:10px;" />
           <div style="font-size:18px;font-weight:bold;color:#2C2416;">
             {it['title']} <span style="color:#4A7C59;">— {_fmt(it['price'] * it['qty'])}</span>
@@ -84,12 +92,29 @@ def build_order_html(name: str, items: list[dict], total: float) -> str:
 """
 
 
-def send_email(to: str, subject: str, html: str) -> None:
+def send_email(to: str, subject: str, html: str, items: list[dict] | None = None) -> None:
     """Отправляет HTML-письмо через SMTP (MailHog или реальный сервер)."""
-    msg = MIMEMultipart("alternative")
+    msg = MIMEMultipart("related")
     msg["Subject"] = subject
     msg["From"] = MAIL_FROM
     msg["To"] = to
-    msg.attach(MIMEText(html, "html", "utf-8"))
+    alternative = MIMEMultipart("alternative")
+    alternative.attach(MIMEText(html, "html", "utf-8"))
+    msg.attach(alternative)
+
+    for index, item in enumerate(items or []):
+        image_path = item.get("img", "")
+        if not image_path.startswith("/uploads/"):
+            continue
+        path = UPLOAD_DIR / Path(image_path).name
+        if not path.is_file():
+            raise FileNotFoundError(f"Order image not found: {image_path}")
+        subtype = path.suffix.lower().lstrip(".")
+        if subtype == "jpg":
+            subtype = "jpeg"
+        image = MIMEImage(path.read_bytes(), _subtype=subtype)
+        image.add_header("Content-ID", f"<order-image-{index}>")
+        image.add_header("Content-Disposition", "inline", filename=path.name)
+        msg.attach(image)
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
         server.send_message(msg)
