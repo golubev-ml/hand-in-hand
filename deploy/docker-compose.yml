@@ -28,6 +28,10 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/hand_in_hand
       SECRET_KEY: your-secret-key
+      SMTP_HOST: mailhog
+      SMTP_PORT: "1025"
+      MAIL_FROM: noreply@kraski-detstva.ru
+      BASE_URL: http://localhost:8000
     volumes:
       - ../front:/app/front
     depends_on:
@@ -43,6 +47,13 @@ services:
     ports:
       - "3000:3000"
     command: sh -c "npm install && npm run build && npm run preview -- --host 0.0.0.0 --port 3000"
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: hand-in-hand-mailhog
+    ports:
+      - "1025:1025"
+      - "9000:8025"
 
 volumes:
   postgres_data:

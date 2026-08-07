@@ -8,8 +8,8 @@ FRONT_DIR="$ROOT_DIR/front"
 
 cd "$DEPLOY_DIR"
 
-echo "[1/5] Starting database..."
-docker compose up -d db
+echo "[1/5] Starting database and mailhog..."
+docker compose up -d db mailhog
 
 for i in {1..30}; do
   if docker compose ps db | grep -q 'healthy'; then
@@ -41,23 +41,23 @@ if [ "$CURRENT_API_HASH" != "$PREVIOUS_API_HASH" ]; then
   echo "[2/5] API code changed; rebuilding API image..."
   docker compose build api
   echo "$CURRENT_API_HASH" > "$API_HASH_FILE"
-  STEP=3
 else
   echo "[2/5] API code unchanged; using existing API image."
-  STEP=3
 fi
 
-echo "[${STEP}/5] Running migrations..."
+echo "[3/5] Running migrations..."
 docker compose run --rm api sh -c 'cd /app && alembic upgrade head'
 
-echo "[3/4] Rebuilding and starting frontend..."
+echo "[4/5] Rebuilding and starting frontend..."
 docker compose up -d --force-recreate frontend
 
-echo "[4/4] Restarting API..."
+echo "[5/5] Restarting API..."
 docker compose up -d --build --force-recreate api
 
+echo ""
 echo "Deployment completed."
 echo "Frontend: http://localhost:3000"
-echo "API: http://localhost:8000"
-echo "Admin: http://localhost:8000/admin"
-echo "Docs: http://localhost:8000/docs"
+echo "API:      http://localhost:8000"
+echo "Admin:    http://localhost:8000/admin"
+echo "Docs:     http://localhost:8000/docs"
+echo "MailHog (письма): http://localhost:9000"
