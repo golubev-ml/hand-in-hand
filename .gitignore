@@ -6,3 +6,4 @@ __pycache__/
 *.db
 back/uploads/
 .env
+deploy/.api_build_hash
