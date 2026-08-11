@@ -8,6 +8,27 @@ FRONT_DIR="$ROOT_DIR/front"
 
 cd "$DEPLOY_DIR"
 
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
+fi
+
+APP_ENV="${APP_ENV:-local}"
+if [ "$APP_ENV" = "test" ] || [ "$APP_ENV" = "prod" ]; then
+  missing=()
+  for name in POSTGRES_PASSWORD DATABASE_URL SECRET_KEY ADMIN_LOGIN ADMIN_PASSWORD; do
+    if [ -z "${!name:-}" ]; then
+      missing+=("$name")
+    fi
+  done
+  if [ "${#missing[@]}" -gt 0 ]; then
+    echo "Missing required $APP_ENV secrets: ${missing[*]}" >&2
+    exit 1
+  fi
+fi
+
 echo "[1/4] Starting database and mailhog..."
 docker compose up -d db mailhog
 
