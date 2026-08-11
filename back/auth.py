@@ -11,8 +11,10 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Manager
 
-# В продакшене обязательно задай свой SECRET_KEY через переменную окружения!
-SECRET_KEY = os.getenv("SECRET_KEY", "change-this-secret-key")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if os.getenv("APP_ENV", "local") in ("test", "prod") and not SECRET_KEY:
+    raise RuntimeError("APP_ENV=test/prod: не задан SECRET_KEY")
+SECRET_KEY = SECRET_KEY or "dev-only-insecure-key"  # только для local
 ALGORITHM = "HS256"
 TOKEN_HOURS = 12
 
