@@ -7,3 +7,5 @@ __pycache__/
 back/uploads/
 .env
 deploy/.api_build_hash
+deploy/.env
+deploy/secrets/

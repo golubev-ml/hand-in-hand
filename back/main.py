@@ -1,5 +1,6 @@
 import json
 import os
+import secrets
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -19,8 +20,23 @@ from admin_panel import router as admin_router
 
 load_dotenv()
 
-ADMIN_LOGIN = os.getenv("ADMIN_LOGIN", "hand_admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "0h8Zkqv3wG29")
+APP_ENV = os.getenv("APP_ENV", "local")  # local | test | prod
+
+ADMIN_LOGIN = os.getenv("ADMIN_LOGIN")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+
+if APP_ENV in ("test", "prod"):
+    # на тесте/проде без секретов приложение падает — как требует Максим
+    _missing = [n for n, v in (("ADMIN_LOGIN", ADMIN_LOGIN),
+                               ("ADMIN_PASSWORD", ADMIN_PASSWORD)) if not v]
+    if _missing:
+        raise RuntimeError(f"APP_ENV={APP_ENV}: не заданы секреты: {', '.join(_missing)}")
+else:
+    # локальная разработка: пароль генерируется и виден только в логах
+    ADMIN_LOGIN = ADMIN_LOGIN or "hand_admin"
+    if not ADMIN_PASSWORD:
+        ADMIN_PASSWORD = secrets.token_urlsafe(12)
+        print(f">>> DEV: временный админ {ADMIN_LOGIN} / {ADMIN_PASSWORD}")
 
 FRONT_DIR = next(
     (
@@ -43,13 +59,10 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 async def lifespan(app: FastAPI):
     db = SessionLocal()
     try:
-        if db.query(Manager).count() == 0:
-            db.add(Manager(login="admin", password_hash=hash_password("admin123")))
-            db.commit()
-            print(">>> Создан админ по умолчанию: admin / admin123 — смени пароль!")
         if not db.query(Manager).filter(Manager.login == ADMIN_LOGIN).first():
             db.add(Manager(login=ADMIN_LOGIN, password_hash=hash_password(ADMIN_PASSWORD)))
             db.commit()
+            print(f">>> Создан администратор: {ADMIN_LOGIN}")
     finally:
         db.close()
     yield
