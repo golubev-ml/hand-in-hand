@@ -1,3 +1,2 @@
-[letsencrypt b1c5ffd] docs: добавлена лицензия MITcat
- 1 file changed, 21 insertions(+)
- create mode 100644 LICENSE
+[letsencrypt 3488ab9] docs: добавлена лицензия MITcat
+ 1 file changed, 3 insertions(+), 21 deletions(-)
