@@ -1,81 +1,43 @@
 #!/bin/bash
 set -euo pipefail
-
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DEPLOY_DIR="$ROOT_DIR/deploy"
-BACK_DIR="$ROOT_DIR/back"
-FRONT_DIR="$ROOT_DIR/front"
-
-cd "$DEPLOY_DIR"
-
-if [ -f .env ]; then
-  set -a
-  # shellcheck disable=SC1091
-  source .env
-  set +a
-fi
-
-APP_ENV="${APP_ENV:-local}"
-if [ "$APP_ENV" = "test" ] || [ "$APP_ENV" = "prod" ]; then
-  missing=()
-  for name in POSTGRES_PASSWORD DATABASE_URL SECRET_KEY ADMIN_LOGIN ADMIN_PASSWORD; do
-    if [ -z "${!name:-}" ]; then
-      missing+=("$name")
-    fi
-  done
-  if [ "${#missing[@]}" -gt 0 ]; then
-    echo "Missing required $APP_ENV secrets: ${missing[*]}" >&2
-    exit 1
-  fi
-fi
+cd "$ROOT_DIR/deploy"
 
 echo "[1/4] Starting database and mailhog..."
 docker compose up -d db mailhog
-
 for i in {1..30}; do
-  if docker compose ps db | grep -q 'healthy'; then
-    break
-  fi
-  if [ "$i" -eq 30 ]; then
-    echo "Database did not become healthy in time." >&2
-    exit 1
-  fi
+  docker compose ps db | grep -q 'healthy' && break
+  [ "$i" -eq 30 ] && { echo "DB not healthy" >&2; exit 1; }
   sleep 2
 done
 
-compute_api_hash() {
-  find "$BACK_DIR" -type f \( -name '*.py' -o -name 'requirements.txt' \) -print0 \
-    | sort -z \
-    | xargs -0 sha256sum \
-    | sha256sum \
-    | awk '{print $1}'
-}
-
-API_HASH_FILE="$DEPLOY_DIR/.api_build_hash"
-CURRENT_API_HASH=$(compute_api_hash)
-PREVIOUS_API_HASH=""
-if [ -f "$API_HASH_FILE" ]; then
-  PREVIOUS_API_HASH=$(cat "$API_HASH_FILE")
-fi
-
-if [ "$CURRENT_API_HASH" != "$PREVIOUS_API_HASH" ]; then
-  echo "[2/4] API code changed; rebuilding API image..."
-  docker compose build api
-  echo "$CURRENT_API_HASH" > "$API_HASH_FILE"
-else
-  echo "[2/4] API code unchanged; using existing API image."
-fi
+echo "[2/4] Building images (docker cache)..."
+docker compose build api frontend
 
 echo "[3/4] Running migrations..."
 docker compose run --rm api sh -c 'cd /app && alembic upgrade head'
 
-echo "[4/4] Starting API and nginx (frontend built inside nginx)..."
-docker compose up -d --build --force-recreate api nginx
+echo "[4/4] Starting api, frontend, traefik..."
+docker compose up -d api frontend traefik
+
+echo "Waiting for Let's Encrypt + HTTPS..."
+https_ready=false
+for i in {1..30}; do
+  if curl -sf https://hand-in-hand-kzn.ru/api/health >/dev/null 2>&1; then
+    echo "HTTPS OK"
+    https_ready=true
+    break
+  fi
+  sleep 5
+done
+if [ "$https_ready" != true ]; then
+  echo "HTTPS did not become ready in time." >&2
+  exit 1
+fi
 
 echo ""
 echo "Deployment completed."
-echo "Site:    http://hand-in-hand-kzn.ru"
-echo "API:     http://localhost:8000"
-echo "Admin:   http://localhost:8000/admin"
-echo "Docs:    http://localhost:8000/docs"
+echo "Site:  https://hand-in-hand-kzn.ru"
+echo "Admin: https://hand-in-hand-kzn.ru/admin"
+echo "Docs:  https://hand-in-hand-kzn.ru/docs"
 echo "MailHog: http://localhost:9000"
