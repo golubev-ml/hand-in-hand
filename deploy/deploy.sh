@@ -21,10 +21,19 @@ echo "[4/4] Starting api, frontend, traefik..."
 docker compose up -d api frontend traefik
 
 echo "Waiting for Let's Encrypt + HTTPS..."
+https_ready=false
 for i in {1..30}; do
-  curl -sf https://hand-in-hand-kzn.ru/api/health >/dev/null 2>&1 && { echo "HTTPS OK"; break; }
+  if curl -sf https://hand-in-hand-kzn.ru/api/health >/dev/null 2>&1; then
+    echo "HTTPS OK"
+    https_ready=true
+    break
+  fi
   sleep 5
 done
+if [ "$https_ready" != true ]; then
+  echo "HTTPS did not become ready in time." >&2
+  exit 1
+fi
 
 echo ""
 echo "Deployment completed."
