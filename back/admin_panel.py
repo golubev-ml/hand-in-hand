@@ -90,7 +90,14 @@ def do_login(login: str = Form(...), password: str = Form(...), db: Session = De
             status_code=401,
         )
     response = RedirectResponse("/admin/", status_code=302)
-    response.set_cookie("admin_token", create_token(manager.id, manager.login), httponly=True, max_age=12 * 3600)
+    response.set_cookie(
+        "admin_token",
+        create_token(manager.id, manager.login),
+        httponly=True,
+        max_age=12 * 3600,
+        samesite="lax",
+        secure=os.getenv("APP_ENV", "local") != "local",
+    )
     return response
 
 

@@ -10,8 +10,12 @@ router = APIRouter(prefix="/api/auth", tags=["Менеджеры"])
 
 
 @router.post("/register", response_model=ManagerOut, status_code=201)
-def register(data: ManagerCreate, db: Session = Depends(get_db)):
-    """Создание менеджера. В продакшене этот эндпоинт нужно закрыть!"""
+def register(
+    data: ManagerCreate,
+    db: Session = Depends(get_db),
+    _: Manager = Depends(get_current_manager),
+):
+    """Создание менеджера. Доступно только авторизованным менеджерам."""
     if db.query(Manager).filter(Manager.login == data.login).first():
         raise HTTPException(status_code=400, detail="Логин уже занят")
     manager = Manager(login=data.login, password_hash=hash_password(data.password))

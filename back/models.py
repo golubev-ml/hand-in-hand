@@ -17,15 +17,23 @@ class Manager(Base):
 
 
 class Picture(Base):
-    """Рисунки: путь картинки, история, время, цена, статус."""
+    """Рисунок: картинка, автор, цена, статус + поля витрины."""
     __tablename__ = "pictures"
-
     id = Column(Integer, primary_key=True, index=True)
-    image_path = Column(String(500), nullable=False)     # например /uploads/abc.jpg
-    history = Column(Text, default="")
+    image_path = Column(String(500), nullable=False)     # /uploads/abc.jpg или внешний URL
+    history = Column(Text, default="")                   # на фронте отдаётся как story
     time = Column(DateTime, default=datetime.now)
     price = Column(Float, default=0.0)
     status = Column(String(20), default="available")     # available | sold | archive
+    # поля витрины (раньше жили в хардкоде App.tsx)
+    title = Column(String(200), default="")
+    author = Column(String(100), default="")
+    age = Column(Integer, default=0)
+    category = Column(String(50), default="painting")
+    description = Column(Text, default="")
+    is_new = Column(Boolean, default=False)
+    is_featured = Column(Boolean, default=False)
+    popularity = Column(Integer, default=0)
 
 
 class Donation(Base):
