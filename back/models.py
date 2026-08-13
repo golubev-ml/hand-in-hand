@@ -31,8 +31,8 @@ class Picture(Base):
     age = Column(Integer, default=0)
     category = Column(String(50), default="painting")
     description = Column(Text, default="")
-    is_new = Column(Boolean, default=False)
-    is_featured = Column(Boolean, default=False)
+    is_new = Column(Integer, default=0)
+    is_featured = Column(Integer, default=0)
     popularity = Column(Integer, default=0)
 
 

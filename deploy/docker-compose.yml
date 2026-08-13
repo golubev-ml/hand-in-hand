@@ -37,6 +37,7 @@ services:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=deploy_web"
       - "traefik.http.routers.api.rule=Host(`${DOMAIN:-hand-in-hand-kzn.ru}`) && (PathPrefix(`/api`) || PathPrefix(`/admin`) || PathPrefix(`/uploads`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`))"
       - "traefik.http.routers.api.entrypoints=websecure"
       - "traefik.http.routers.api.tls.certresolver=letsencrypt"
@@ -67,8 +68,10 @@ services:
     networks: [internal]
 
   traefik:
-    image: traefik:v3.0
+    image: traefik:v3.6.16
     container_name: hand-in-hand-traefik
+    environment:
+      DOCKER_API_VERSION: "1.44"
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"

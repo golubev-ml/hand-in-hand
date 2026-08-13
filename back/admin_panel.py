@@ -1,5 +1,6 @@
 """Админка сайта: /admin. Чистый FastAPI, без сторонних админок."""
 import html
+import os
 import uuid
 from pathlib import Path
 
@@ -136,9 +137,11 @@ def pictures(login: str = Depends(current_admin), db: Session = Depends(get_db))
     tr = ""
     for p in rows:
         title = html.escape(getattr(p, "title", "") or f"#{p.id}")
+        author = html.escape(getattr(p, "author", "") or "—")
+        age = getattr(p, "age", 0) or "—"
         tr += f"""<tr>
         <td><img class="thumb" src="{p.image_path}"></td>
-        <td>{title}</td><td>{p.price} ₽</td>
+        <td>{title}</td><td>{author}</td><td>{age}</td><td>{p.price} ₽</td>
         <td><form method="post" action="/admin/pictures/{p.id}/status" style="margin:0">
             <select name="status" onchange="this.form.submit()">
                 <option {'selected' if p.status == 'available' else ''}>available</option>
@@ -148,7 +151,7 @@ def pictures(login: str = Depends(current_admin), db: Session = Depends(get_db))
         <td><form method="post" action="/admin/pictures/{p.id}/delete" style="margin:0"><button>удалить</button></form></td>
         </tr>"""
     body = f"""<h2>Рисунки</h2><div class="card"><table>
-    <tr><th>Превью</th><th>Название</th><th>Цена</th><th>Статус</th><th></th></tr>{tr}</table></div>"""
+    <tr><th>Превью</th><th>Название</th><th>Имя ребёнка</th><th>Возраст</th><th>Цена</th><th>Статус</th><th></th></tr>{tr}</table></div>"""
     return page("Рисунки", body, login)
 
 
@@ -158,6 +161,8 @@ def upload_form(login: str = Depends(current_admin)):
     <form method="post" action="/admin/pictures/upload" enctype="multipart/form-data">
     <input type="file" name="file" accept="image/*" required><br>
     <input name="title" placeholder="Название" style="width:100%"><br>
+    <input name="author" placeholder="Имя ребёнка" maxlength="100" required style="width:100%"><br>
+    <input name="age" type="number" min="1" max="18" placeholder="Возраст" required style="width:100%"><br>
     <textarea name="history" placeholder="История рисунка" style="width:100%" rows="3"></textarea><br>
     <input name="price" type="number" step="0.01" value="0"><br>
     <button>Сохранить</button></form></div>"""
@@ -168,6 +173,8 @@ def upload_form(login: str = Depends(current_admin)):
 async def upload_save(
     file: UploadFile = File(...),
     title: str = Form(""),
+    author: str = Form(...),
+    age: int = Form(..., ge=1, le=18),
     history: str = Form(""),
     price: float = Form(0.0),
     login: str = Depends(current_admin),
@@ -178,7 +185,13 @@ async def upload_save(
         return HTMLResponse("Формат не поддерживается. <a href='/admin/pictures/upload'>назад</a>", status_code=400)
     name = f"{uuid.uuid4().hex}{ext}"
     (UPLOAD_DIR / name).write_bytes(await file.read())
-    fields = {"image_path": f"/uploads/{name}", "history": history, "price": price}
+    fields = {
+        "image_path": f"/uploads/{name}",
+        "history": history,
+        "price": price,
+        "author": author.strip(),
+        "age": age,
+    }
     if hasattr(Picture, "title"):          # колонка есть не во всех версиях модели
         fields["title"] = title
     db.add(Picture(**fields))
