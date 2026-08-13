@@ -68,7 +68,7 @@ services:
     networks: [internal]
 
   traefik:
-    image: traefik:v3.6.16
+    image: traefik:v3.7.1
     container_name: hand-in-hand-traefik
     environment:
       DOCKER_API_VERSION: "1.44"
@@ -81,7 +81,7 @@ services:
       - "--entrypoints.websecure.address=:443"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
       - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-ahmadeeva.alina97@gmail.com}"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-m2a2x2000@gmail.com}"
       - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"
