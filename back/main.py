@@ -70,10 +70,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Gallery API", lifespan=lifespan)
 
-# CORS: для разработки. В продакшене замени "*" на свой домен.
+BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+
+# CORS: в test/prod фронт и API за одним доменом (Traefik) — ограничиваем
+# ориджины доменом; в local разрешаем dev-серверы (vite, предпросмотры).
+if APP_ENV == "local":
+    CORS_ORIGINS = ["*"]
+else:
+    CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", BASE_URL).split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )

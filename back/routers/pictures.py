@@ -16,13 +16,31 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
 
+def _to_front(p: Picture) -> dict:
+    """Объект БД → формат, который ждёт витрина (App.tsx, интерфейс Artwork)."""
+    return {
+        "id": p.id,
+        "title": p.title or f"Рисунок #{p.id}",
+        "author": p.author or "",
+        "age": p.age or 0,
+        "category": p.category or "painting",
+        "description": p.description or "",
+        "price": p.price or 0.0,
+        "img": p.image_path,
+        "isNew": bool(p.is_new),
+        "isFeatured": bool(p.is_featured),
+        "story": p.history or "",
+        "popularity": p.popularity or 0,
+    }
+
+
 @router.get("", response_model=list[PictureOut])
 def list_pictures(status: str | None = None, db: Session = Depends(get_db)):
     """Публичный список рисунков. Фильтр: /api/pictures?status=sold"""
     query = db.query(Picture)
     if status:
         query = query.filter(Picture.status == status)
-    return query.order_by(Picture.time.desc()).all()
+    return [_to_front(p) for p in query.order_by(Picture.time.desc()).all()]
 
 
 @router.get("/{picture_id}", response_model=PictureOut)
@@ -30,7 +48,7 @@ def get_picture(picture_id: int, db: Session = Depends(get_db)):
     picture = db.get(Picture, picture_id)
     if picture is None:
         raise HTTPException(status_code=404, detail="Рисунок не найден")
-    return picture
+    return _to_front(picture)
 
 
 @router.post("/upload")
@@ -60,7 +78,7 @@ def create_picture(
     db.add(picture)
     db.commit()
     db.refresh(picture)
-    return picture
+    return _to_front(picture)
 
 
 @router.put("/{picture_id}", response_model=PictureOut)
@@ -77,7 +95,7 @@ def update_picture(
         setattr(picture, field, value)
     db.commit()
     db.refresh(picture)
-    return picture
+    return _to_front(picture)
 
 
 @router.delete("/{picture_id}", status_code=204)

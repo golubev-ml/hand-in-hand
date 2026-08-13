@@ -856,6 +856,7 @@ function ContactSection() {
 // ─── Main App ─────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const [artworks, setArtworks] = useState<Artwork[]>(ARTWORKS)
   const [cart, setCart] = useState<CartItem[]>([])
   const [cartOpen, setCartOpen] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
@@ -869,6 +870,23 @@ export default function App() {
     const handler = () => setScrolled(window.scrollY > 40)
     window.addEventListener('scroll', handler, { passive: true })
     return () => window.removeEventListener('scroll', handler)
+  }, [])
+
+  useEffect(() => {
+    const controller = new AbortController()
+
+    fetch('/api/pictures?status=available', { signal: controller.signal })
+      .then(response => {
+        if (!response.ok) throw new Error(`Pictures API returned ${response.status}`)
+        return response.json() as Promise<Artwork[]>
+      })
+      .then(pictures => setArtworks(pictures))
+      .catch(error => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        console.error('Failed to load pictures:', error)
+      })
+
+    return () => controller.abort()
   }, [])
 
   const cartCount = cart.reduce((s, i) => s + i.qty, 0)
@@ -891,7 +909,7 @@ export default function App() {
     setCart(prev => prev.map(i => i.artwork.id === id ? { ...i, qty } : i))
   }
 
-  const filteredSorted = ARTWORKS
+  const filteredSorted = [...artworks]
     .filter(a => {
       if (filter === 'all') return true
       if (filter === 'new') return a.isNew
@@ -905,7 +923,7 @@ export default function App() {
       return 0
     })
 
-  const featured = ARTWORKS.filter(a => a.isFeatured).slice(0, 3)
+  const featured = artworks.filter(a => a.isFeatured).slice(0, 3)
 
   return (
     <div className="min-h-screen bg-[#FEFAF4]">
