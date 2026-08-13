@@ -13,11 +13,12 @@ from sqlalchemy.orm import Session
 
 from auth import ALGORITHM, SECRET_KEY, create_token, verify_password
 from database import get_db
-from models import Donation, Log, Manager, Picture
+from models import Donation, Log, Manager, Order, Picture
 
 UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 
 router = APIRouter(prefix="/admin", include_in_schema=False)
@@ -56,6 +57,7 @@ img.thumb{width:60px;height:60px;object-fit:cover}
 <a href="/admin/">Статистика</a>
 <a href="/admin/pictures">Рисунки</a>
 <a href="/admin/pictures/upload">+ Картинка</a>
+<a href="/admin/orders">Заказы</a>
 <a href="/admin/donations">Пожертвования</a>
 <a href="/admin/logs">Лог</a>
 <span style="margin-left:auto">@LOGIN@ · <a href="/admin/logout">выйти</a></span>
@@ -183,8 +185,14 @@ async def upload_save(
     ext = Path(file.filename or "").suffix.lower()
     if ext not in ALLOWED_EXT:
         return HTMLResponse("Формат не поддерживается. <a href='/admin/pictures/upload'>назад</a>", status_code=400)
+    
+    # Проверка размера файла
+    file_data = await file.read()
+    if len(file_data) > MAX_FILE_SIZE:
+        return HTMLResponse(f"Файл слишком большой (макс {MAX_FILE_SIZE // (1024*1024)} МБ). <a href='/admin/pictures/upload'>назад</a>", status_code=400)
+    
     name = f"{uuid.uuid4().hex}{ext}"
-    (UPLOAD_DIR / name).write_bytes(await file.read())
+    (UPLOAD_DIR / name).write_bytes(file_data)
     fields = {
         "image_path": f"/uploads/{name}",
         "history": history,
@@ -216,6 +224,26 @@ def picture_delete(picture_id: int, login: str = Depends(current_admin), db: Ses
         db.delete(picture)
         db.commit()
     return RedirectResponse("/admin/pictures", status_code=302)
+
+
+# ---------- заказы ----------
+@router.get("/orders", response_class=HTMLResponse)
+def orders(login: str = Depends(current_admin), db: Session = Depends(get_db)):
+    rows = db.query(Order).order_by(Order.created_at.desc()).all()
+    tr = ""
+    for o in rows:
+        tr += f"""<tr>
+        <td>{o.created_at:%m-%d %H:%M}</td>
+        <td>{html.escape(o.customer_name)}</td>
+        <td>{html.escape(o.customer_email)}</td>
+        <td>{html.escape(o.customer_phone)}</td>
+        <td>{o.total} ₽</td>
+        <td><span style="background:#{'#dcfce7' if o.payment_status == 'paid' else '#fee2e2'};padding:2px 6px;border-radius:3px">{o.payment_status}</span></td>
+        <td><span style="background:#{'#dcfce7' if o.email_status == 'sent' else '#fef3c7'};padding:2px 6px;border-radius:3px">{o.email_status}</span></td>
+        </tr>"""
+    body = f"""<h2>Заказы</h2><div class="card"><table>
+    <tr><th>Дата</th><th>Имя</th><th>Email</th><th>Телефон</th><th>Сумма</th><th>Оплата</th><th>Email</th></tr>{tr}</table></div>"""
+    return page("Заказы", body, login)
 
 
 # ---------- пожертвования ----------

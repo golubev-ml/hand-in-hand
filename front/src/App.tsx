@@ -490,6 +490,8 @@ function CheckoutModal({
   const [form, setForm] = useState({ name: '', email: '', phone: '', comment: '' })
   const [payment, setPayment] = useState<'card' | 'sbp' | 'transfer'>('card')
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(false)
+  const [orderError, setOrderError] = useState('')
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -510,8 +512,42 @@ function CheckoutModal({
     if (validate()) setStep('payment')
   }
 
-  function handlePaySubmit() {
-    setStep('success')
+  async function handlePaySubmit() {
+    setLoading(true)
+    setOrderError('')
+    
+    try {
+      const picture_ids = items.map(item => item.artwork.id)
+      
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer_name: form.name,
+          customer_email: form.email,
+          customer_phone: form.phone,
+          picture_ids: picture_ids,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.payment_status === 'paid') {
+        setStep('success')
+      } else if (response.status === 402 || data.payment_status === 'failed') {
+        setOrderError('Платёж отклонен. Пожалуйста, проверьте номер телефона и попробуйте снова.')
+        setStep('payment')
+      } else {
+        setOrderError(data.detail || 'Произошла ошибка при создании заказа')
+        setStep('payment')
+      }
+    } catch (error) {
+      setOrderError('Ошибка подключения. Пожалуйста, проверьте интернет и попробуйте снова.')
+      setStep('payment')
+      console.error('Order error:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -614,6 +650,11 @@ function CheckoutModal({
                 <p className="text-sm text-[#6B5B42] mb-4">
                   Выберите способ оплаты для заказа на <strong>{fmt(total)}</strong>
                 </p>
+                {orderError && (
+                  <div className="bg-[#FEE2E2] rounded-xl p-3 mb-4 text-sm text-[#991B1B]">
+                    ⚠️ {orderError}
+                  </div>
+                )}
                 <div className="space-y-3 mb-6">
                   {[
                     { key: 'card' as const, icon: '💳', label: 'Банковская карта', sub: 'Visa, Mastercard, МИР' },
@@ -655,15 +696,17 @@ function CheckoutModal({
                 <div className="flex gap-3">
                   <button
                     onClick={() => setStep('form')}
-                    className="flex-1 border border-[#E8DCC8] text-[#6B5B42] py-3.5 rounded-2xl font-semibold hover:bg-[#F5EFE3] transition-colors"
+                    disabled={loading}
+                    className="flex-1 border border-[#E8DCC8] text-[#6B5B42] py-3.5 rounded-2xl font-semibold hover:bg-[#F5EFE3] transition-colors disabled:opacity-50"
                   >
                     ← Назад
                   </button>
                   <button
                     onClick={handlePaySubmit}
-                    className="flex-[2] bg-[#2C2416] text-white py-3.5 rounded-2xl font-bold hover:bg-[#4A7C59] transition-colors"
+                    disabled={loading}
+                    className="flex-[2] bg-[#2C2416] text-white py-3.5 rounded-2xl font-bold hover:bg-[#4A7C59] transition-colors disabled:opacity-50"
                   >
-                    Оплатить {fmt(total)}
+                    {loading ? 'Обработка...' : `Оплатить ${fmt(total)}`}
                   </button>
                 </div>
               </div>
