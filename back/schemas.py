@@ -75,7 +75,7 @@ class PictureOut(BaseModel):
     popularity: int
 
 
-# ---------- Пожертвования ----------
+# ---------- Пожертвования и Заказы ----------
 class OrderItem(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     img: str
@@ -88,6 +88,36 @@ class OrderCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     email: str = Field(min_length=3, max_length=254)
     items: list[OrderItem] = Field(min_length=1)
+
+
+class PictureOrderCreate(BaseModel):
+    """Запрос для создания заказа картин."""
+    customer_name: str = Field(min_length=1, max_length=100)
+    customer_email: str = Field(min_length=3, max_length=254)
+    customer_phone: str = Field(min_length=1, max_length=20)
+    picture_ids: list[int] = Field(min_length=1)
+
+
+class OrderOut(BaseModel):
+    """Ответ при создании заказа."""
+    order_id: int
+    payment_status: str  # paid | failed
+    email_status: str    # sent | failed | not_sent
+    total: float
+
+
+class OrderDetailOut(BaseModel):
+    """Заказ для админки."""
+    id: int
+    created_at: datetime
+    customer_name: str
+    customer_email: str
+    customer_phone: str
+    total: float
+    payment_status: str
+    email_status: str
+    items: dict  # JSON
+    model_config = ConfigDict(from_attributes=True)
 
 
 class DonationCreate(BaseModel):

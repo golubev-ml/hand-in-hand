@@ -1,6 +1,6 @@
 from datetime import datetime, date
 
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, Date
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, Date, JSON
 
 from database import Base
 
@@ -34,6 +34,22 @@ class Picture(Base):
     is_new = Column(Integer, default=0)
     is_featured = Column(Integer, default=0)
     popularity = Column(Integer, default=0)
+    sold_in_order_id = Column(Integer, default=None)     # id заказа, в котором продана картина
+
+
+class Order(Base):
+    """Заказ: покупка картин с контактами и статусом оплаты."""
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=datetime.now)
+    customer_name = Column(String(100), nullable=False)
+    customer_email = Column(String(254), nullable=False)
+    customer_phone = Column(String(20), nullable=False)
+    total = Column(Float, nullable=False)
+    payment_status = Column(String(20), default="pending")   # paid | failed
+    email_status = Column(String(20), default="not_sent")    # sent | failed | not_sent
+    items = Column(JSON, nullable=False)                     # JSON-снапшот: [{title, author, age, price, description}, ...]
 
 
 class Donation(Base):

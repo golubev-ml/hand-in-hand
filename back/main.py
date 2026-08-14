@@ -1,8 +1,9 @@
 import json
 import os
 import secrets
+from collections import defaultdict
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -72,7 +73,39 @@ app = FastAPI(title="Gallery API", lifespan=lifespan)
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 
-# CORS: в test/prod фронт и API за одним доменом (Traefik) — ограничиваем
+# ─── Rate Limiter (in-memory по IP) ───────────────────────────────────────────
+# Простой механизм без зависимостей: для POST /api/orders и /admin/login
+RATE_LIMITS = defaultdict(list)  # {ip: [timestamp, ...]}
+RATE_LIMIT_REQUESTS = 5  # макс 5 запросов
+RATE_LIMIT_WINDOW_SECONDS = 60  # за 60 секунд
+
+
+def _get_client_ip(request: Request) -> str:
+    """Получить IP клиента (с учётом прокси)."""
+    if forwarded := request.headers.get("x-forwarded-for"):
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def _check_rate_limit(ip: str, path: str) -> bool:
+    """Проверить rate limit. Возвращает True если запрос разрешён."""
+    now = datetime.now()
+    key = f"{ip}:{path}"
+    
+    # Очищаем старые запросы за пределами окна
+    RATE_LIMITS[key] = [
+        ts for ts in RATE_LIMITS[key] 
+        if now - ts < timedelta(seconds=RATE_LIMIT_WINDOW_SECONDS)
+    ]
+    
+    if len(RATE_LIMITS[key]) >= RATE_LIMIT_REQUESTS:
+        return False
+    
+    RATE_LIMITS[key].append(now)
+    return True
+
+
+# ─── CORS ─────────────────────────────────────────────────────────────────────
 # ориджины доменом; в local разрешаем dev-серверы (vite, предпросмотры).
 if APP_ENV == "local":
     CORS_ORIGINS = ["*"]
@@ -120,6 +153,15 @@ async def log_requests(request: Request, call_next):
             body = await request.body()
         except Exception:
             body = b""
+
+    # Rate limiting для чувствительных эндпоинтов
+    if request.method == "POST" and request.url.path in ("/api/orders", "/admin/login"):
+        ip = _get_client_ip(request)
+        if not _check_rate_limit(ip, request.url.path):
+            return JSONResponse(
+                {"detail": "Слишком много запросов. Попробуйте позже."},
+                status_code=429,
+            )
 
     response = await call_next(request)
 
