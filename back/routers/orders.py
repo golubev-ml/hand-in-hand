@@ -1,6 +1,6 @@
 """Заказы: покупка рисунков с отправкой письма покупателю."""
 import json
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -11,8 +11,8 @@ from schemas import PictureOrderCreate, OrderOut
 router = APIRouter(prefix="/api/orders", tags=["Заказы"])
 
 
-@router.post("", response_model=OrderOut, status_code=201)
-def create_order(data: PictureOrderCreate, db: Session = Depends(get_db)):
+@router.post("", response_model=OrderOut)
+def create_order(data: PictureOrderCreate, response: Response, db: Session = Depends(get_db)):
     """Создание заказа картин с проверкой оплаты по телефону."""
     
     # Получаем картины и проверяем их существование
@@ -23,7 +23,7 @@ def create_order(data: PictureOrderCreate, db: Session = Depends(get_db)):
     
     # Проверяем что картины доступны (не проданы и не в другом заказе)
     for picture in pictures:
-        if picture.status == "sold" or picture.sold_in_order_id is not None:
+        if picture.status == "sold" or picture.order_id is not None:
             raise HTTPException(
                 status_code=400, 
                 detail=f"Картина '{picture.title}' уже продана или недоступна"
@@ -96,7 +96,7 @@ def create_order(data: PictureOrderCreate, db: Session = Depends(get_db)):
     if payment_status == "paid":
         for picture in pictures:
             picture.status = "sold"
-            picture.sold_in_order_id = order.id
+            picture.order_id = order.id
     
     # Логируем
     db.add(Log(
@@ -107,6 +107,9 @@ def create_order(data: PictureOrderCreate, db: Session = Depends(get_db)):
     ))
     
     db.commit()
+
+    if payment_status == "failed":
+        response.status_code = 402
     
     return OrderOut(
         order_id=order.id,
@@ -114,4 +117,3 @@ def create_order(data: PictureOrderCreate, db: Session = Depends(get_db)):
         email_status=email_status,
         total=total,
     )
-

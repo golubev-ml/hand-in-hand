@@ -80,7 +80,7 @@ class OrderItem(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     img: str
     story: str = ""
-    price: float = Field(ge=0)
+    price: float = Field(default=0.0, ge=0)
     qty: int = Field(default=1, ge=1)
 
 
