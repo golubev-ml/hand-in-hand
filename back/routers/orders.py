@@ -23,7 +23,7 @@ def create_order(data: PictureOrderCreate, db: Session = Depends(get_db)):
     
     # Проверяем что картины доступны (не проданы и не в другом заказе)
     for picture in pictures:
-        if picture.status == "sold" or picture.sold_in_order_id is not None:
+        if picture.status == "sold" or picture.order_id is not None:
             raise HTTPException(
                 status_code=400, 
                 detail=f"Картина '{picture.title}' уже продана или недоступна"
@@ -96,7 +96,7 @@ def create_order(data: PictureOrderCreate, db: Session = Depends(get_db)):
     if payment_status == "paid":
         for picture in pictures:
             picture.status = "sold"
-            picture.sold_in_order_id = order.id
+            picture.order_id = order.id
     
     # Логируем
     db.add(Log(

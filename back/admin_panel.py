@@ -3,6 +3,7 @@ import html
 import os
 import uuid
 from pathlib import Path
+from PIL import Image
 
 import jwt
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, HTTPException
@@ -186,21 +187,54 @@ async def upload_save(
     if ext not in ALLOWED_EXT:
         return HTMLResponse("Формат не поддерживается. <a href='/admin/pictures/upload'>назад</a>", status_code=400)
     
-    # Проверка размера файла
     file_data = await file.read()
     if len(file_data) > MAX_FILE_SIZE:
         return HTMLResponse(f"Файл слишком большой (макс {MAX_FILE_SIZE // (1024*1024)} МБ). <a href='/admin/pictures/upload'>назад</a>", status_code=400)
     
-    name = f"{uuid.uuid4().hex}{ext}"
-    (UPLOAD_DIR / name).write_bytes(file_data)
+    base = uuid.uuid4().hex
+    orig_name = f"{base}{ext}"
+    orig_path = UPLOAD_DIR / orig_name
+    orig_path.write_bytes(file_data)
+    
+    # Pillow: ориентация и версии
+    orientation = "landscape"
+    gallery = mail = mobile = ""
+    try:
+        with Image.open(orig_path) as img:
+            img = Image.open(orig_path)
+            if img.mode not in ("RGB", "RGBA"):
+                img = img.convert("RGB")
+            w, h = img.size
+            orientation = "portrait" if h > w else "landscape"
+            
+            def save_version(max_dim, suffix):
+                ratio = min(max_dim / w, max_dim / h, 1.0)
+                if ratio >= 1.0:
+                    new = img.copy()
+                else:
+                    new = img.resize((int(w * ratio), int(h * ratio)), Image.LANCZOS)
+                vname = f"{base}_{suffix}.webp"
+                new.save(UPLOAD_DIR / vname, "WEBP", quality=85)
+                return f"/uploads/{vname}"
+            
+            gallery = save_version(800, "gallery")
+            mail    = save_version(600, "mail")
+            mobile  = save_version(480, "mobile")
+    except Exception as e:
+        print(f"[upload] Pillow failed: {e}; using original only")
+    
     fields = {
-        "image_path": f"/uploads/{name}",
+        "image_path": f"/uploads/{orig_name}",
         "history": history,
         "price": price,
         "author": author.strip(),
         "age": age,
+        "orientation": orientation,
+        "image_path_gallery": gallery,
+        "image_path_mail": mail,
+        "image_path_mobile": mobile,
     }
-    if hasattr(Picture, "title"):          # колонка есть не во всех версиях модели
+    if hasattr(Picture, "title"):
         fields["title"] = title
     db.add(Picture(**fields))
     db.commit()
