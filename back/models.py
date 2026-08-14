@@ -34,7 +34,11 @@ class Picture(Base):
     is_new = Column(Integer, default=0)
     is_featured = Column(Integer, default=0)
     popularity = Column(Integer, default=0)
-    sold_in_order_id = Column(Integer, default=None)     # id заказа, в котором продана картина
+    orientation = Column(String(20), default="landscape")
+    image_path_gallery = Column(String(500), default="")
+    image_path_mail = Column(String(500), default="")
+    image_path_mobile = Column(String(500), default="")
+    order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
 
 
 class Order(Base):

@@ -100,7 +100,7 @@ def do_login(login: str = Form(...), password: str = Form(...), db: Session = De
         httponly=True,
         max_age=12 * 3600,
         samesite="lax",
-        secure=os.getenv("APP_ENV", "local") != "local",
+        secure=os.getenv("BASE_URL", "").startswith("https://"),
     )
     return response
 

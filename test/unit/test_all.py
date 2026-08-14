@@ -426,4 +426,3 @@ class TestJWTSecurity:
         with pytest.raises(Exception):
             jwt.decode(token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM],
                        options={"require": ["exp"]})
-EOF

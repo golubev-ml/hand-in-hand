@@ -1,6 +1,6 @@
 """Заказы: покупка рисунков с отправкой письма покупателю."""
 import json
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from database import get_db
@@ -11,8 +11,8 @@ from schemas import PictureOrderCreate, OrderOut
 router = APIRouter(prefix="/api/orders", tags=["Заказы"])
 
 
-@router.post("", response_model=OrderOut, status_code=201)
-def create_order(data: PictureOrderCreate, db: Session = Depends(get_db)):
+@router.post("", response_model=OrderOut)
+def create_order(data: PictureOrderCreate, response: Response, db: Session = Depends(get_db)):
     """Создание заказа картин с проверкой оплаты по телефону."""
     
     # Получаем картины и проверяем их существование
@@ -107,6 +107,9 @@ def create_order(data: PictureOrderCreate, db: Session = Depends(get_db)):
     ))
     
     db.commit()
+
+    if payment_status == "failed":
+        response.status_code = 402
     
     return OrderOut(
         order_id=order.id,
@@ -114,4 +117,3 @@ def create_order(data: PictureOrderCreate, db: Session = Depends(get_db)):
         email_status=email_status,
         total=total,
     )
-
