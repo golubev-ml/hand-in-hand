@@ -13,66 +13,56 @@ from archive import archive_expired
 router = APIRouter(prefix="/api/orders", tags=["Заказы"])
 
 
-@router.post("", response_model=OrderOut)
+@router.post("", response_model=OrderOut, status_code=201)
 def create_order(data: PictureOrderCreate, response: Response, db: Session = Depends(get_db)):
-    """Создание заказа картин с проверкой оплаты по телефону."""
+    """HIH-1: цену выбирает покупатель (не ниже min_price); картины уникальны."""
 
-    # HIH-1: ленивая чистка — sold старше недели уходят в archive
+    # ленивая чистка: sold старше недели -> archive
     archive_expired(db)
-    
-    # Получаем картины и проверяем их существование
-    pictures = db.query(Picture).filter(Picture.id.in_(data.picture_ids)).all()
-    
-    if len(pictures) != len(data.picture_ids):
+
+    ids = [it.picture_id for it in data.items]
+    pictures = db.query(Picture).filter(Picture.id.in_(ids)).all()
+    if len(pictures) != len(ids):
         raise HTTPException(status_code=400, detail="Одна или более картин не найдены")
-    
-    # Проверяем что картины доступны (не проданы и не в другом заказе)
-    for picture in pictures:
-        if picture.status == "sold" or picture.order_id is not None:
-            raise HTTPException(
-                status_code=400, 
-                detail=f"Картина '{picture.title}' уже продана или недоступна"
-            )
-    
-    # Считаем total из цен картин в БД
-    total = sum(p.price for p in pictures)
-    
-    # Определяем статус оплаты по телефону
+    by_id = {p.id: p for p in pictures}
+
+    # доступность и валидация цен — ТОЛЬКО сервером
+    for it in data.items:
+        p = by_id[it.picture_id]
+        if p.status == "sold" or p.order_id is not None:
+            raise HTTPException(status_code=400, detail=f"Картина '{p.title}' уже продана или недоступна")
+        if it.offered_price < p.min_price:
+            raise HTTPException(status_code=400, detail=f"Минимальная цена для '{p.title}' — {int(p.min_price)} ₽")
+
+    total = sum(it.offered_price for it in data.items)
     payment_status = "failed" if data.customer_phone == "78889990002" else "paid"
-    
-    # Создаём снапшот картин для заказа
+
     items_snapshot = [
         {
-            "id": p.id,
-            "title": p.title,
-            "author": p.author,
-            "age": p.age,
-            "price": p.price,
-            "description": p.description,
+            "id": by_id[it.picture_id].id,
+            "title": by_id[it.picture_id].title,
+            "author": by_id[it.picture_id].author,
+            "age": by_id[it.picture_id].age,
+            "price": it.offered_price,
+            "description": by_id[it.picture_id].description,
         }
-        for p in pictures
+        for it in data.items
     ]
-    
-    # Попытаемся отправить письмо при успешной оплате
+
     email_status = "not_sent"
     if payment_status == "paid":
         try:
-            # Подготавливаем данные для письма в формате совместимом с build_order_html
             mail_items = [
                 {
-                    "img": p.image_path,
-                    "title": p.title,
-                    "story": p.history,
-                    "price": p.price,
+                    "img": by_id[it.picture_id].image_path,
+                    "title": by_id[it.picture_id].title,
+                    "story": by_id[it.picture_id].history,
+                    "price": it.offered_price,
                     "qty": 1,
                 }
-                for p in pictures
+                for it in data.items
             ]
-            html = build_order_html(
-                name=data.customer_name,
-                items=mail_items,
-                total=total,
-            )
+            html = build_order_html(name=data.customer_name, items=mail_items, total=total)
             send_email(
                 data.customer_email,
                 "Искусство чтобы жить — спасибо за вашу покупку!",
@@ -83,8 +73,7 @@ def create_order(data: PictureOrderCreate, response: Response, db: Session = Dep
         except Exception as e:
             print(f">>> Не удалось отправить письмо: {e}")
             email_status = "failed"
-    
-    # Создаём заказ в БД
+
     order = Order(
         customer_name=data.customer_name,
         customer_email=data.customer_email,
@@ -95,29 +84,27 @@ def create_order(data: PictureOrderCreate, response: Response, db: Session = Dep
         items=items_snapshot,
     )
     db.add(order)
-    db.flush()  # Получаем ID заказа
-    
-    # При успешной оплате отмечаем картины как проданные
+    db.flush()
+
     if payment_status == "paid":
         now = datetime.now()
-        for picture in pictures:
-            picture.status = "sold"
-            picture.order_id = order.id
-            picture.sold_at = now
-    
-    # Логируем
+        for it in data.items:
+            p = by_id[it.picture_id]
+            p.status = "sold"
+            p.order_id = order.id
+            p.sold_at = now
+
     db.add(Log(
         text=f"ORDER → {data.customer_email} ({payment_status})",
         url="/api/orders",
-        request=f"items={len(pictures)}, total={total}, phone={data.customer_phone}",
+        request=f"items={len(data.items)}, total={total}, phone={data.customer_phone}",
         response=f"payment_status={payment_status}, email_status={email_status}",
     ))
-    
     db.commit()
 
     if payment_status == "failed":
         response.status_code = 402
-    
+
     return OrderOut(
         order_id=order.id,
         payment_status=payment_status,

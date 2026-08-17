@@ -33,6 +33,7 @@ def _to_front(p: Picture) -> dict:
         "story": p.history or "",
         "popularity": p.popularity or 0,
         "status": p.status or "available",
+        "minPrice": p.min_price or 500.0,
     }
 
 

@@ -181,6 +181,7 @@ async def upload_save(
     age: int = Form(..., ge=1, le=18),
     history: str = Form(""),
     price: float = Form(0.0),
+    min_price: float = Form(500.0),
     login: str = Depends(current_admin),
     db: Session = Depends(get_db),
 ):
@@ -228,6 +229,7 @@ async def upload_save(
         "image_path": f"/uploads/{orig_name}",
         "history": history,
         "price": price,
+        "min_price": min_price,
         "author": author.strip(),
         "age": age,
         "orientation": orientation,

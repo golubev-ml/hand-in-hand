@@ -21,6 +21,7 @@ interface Artwork {
   story: string
   popularity: number
   status?: string
+  minPrice?: number
 }
 
 interface CartItem {
@@ -269,7 +270,7 @@ function ArtworkCard({
           {artwork.author}, {artwork.age} лет
         </p>
         <div className="flex items-center justify-between">
-          <span className="text-[#4A7C59] font-bold text-lg">{fmt(artwork.price)}</span>
+          <span className="text-[#4A7C59] font-bold text-lg">от {fmt(artwork.minPrice || 500)}</span>
           <span className="text-xs text-[#A89070]">30% — фонду</span>
         </div>
       </div>
@@ -400,6 +401,7 @@ function CartSidebar({
   onRemove: (id: number) => void
   onChangeQty: (id: number, qty: number) => void
   onCheckout: () => void
+  onPriceChange: (id: number, price: number) => void
 }) {
   const total = items.reduce((s, i) => s + i.artwork.price * i.qty, 0)
 
@@ -449,23 +451,17 @@ function CartSidebar({
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm text-[#2C2416] truncate">{item.artwork.title}</p>
                     <p className="text-xs text-[#A89070] mb-2">{item.artwork.author}, {item.artwork.age} лет</p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 border border-[#E8DCC8] rounded-full px-1">
-                        <button
-                          onClick={() => onChangeQty(item.artwork.id, item.qty - 1)}
-                          className="w-6 h-6 flex items-center justify-center text-[#6B5B42] hover:text-[#2C2416]"
-                        >
-                          −
-                        </button>
-                        <span className="text-xs font-bold w-4 text-center">{item.qty}</span>
-                        <button
-                          onClick={() => onChangeQty(item.artwork.id, item.qty + 1)}
-                          className="w-6 h-6 flex items-center justify-center text-[#6B5B42] hover:text-[#2C2416]"
-                        >
-                          +
-                        </button>
-                      </div>
-                      <span className="text-sm font-bold text-[#4A7C59]">{fmt(item.artwork.price * item.qty)}</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={item.artwork.minPrice || 500}
+                        step="50"
+                        value={item.artwork.price}
+                        onChange={(e) => onPriceChange(item.artwork.id, parseFloat(e.target.value) || 0)}
+                        className="w-24 border border-[#E8DCC8] rounded-lg px-2 py-1 text-sm font-bold text-[#4A7C59] focus:border-[#4A7C59] outline-none"
+                        placeholder="Ваша цена"
+                      />
+                      <span className="text-xs text-[#A89070]">₽ (от {fmt(item.artwork.minPrice || 500)})</span>
                     </div>
                   </div>
                   <button
@@ -506,10 +502,12 @@ function CheckoutModal({
   items,
   total,
   onClose,
+  onPriceChange,
 }: {
   items: CartItem[]
   total: number
   onClose: (cleared: boolean) => void
+  onPriceChange: (id: number, price: number) => void
 }) {
   const [step, setStep] = useState<CheckoutStep>('form')
   const [form, setForm] = useState({ name: '', email: '', phone: '', comment: '' })
@@ -517,6 +515,14 @@ function CheckoutModal({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [orderError, setOrderError] = useState('')
+
+  // Если цена меньше minPrice — ставим minPrice
+  useEffect(() => {
+    items.forEach(item => {
+      const min = item.artwork.minPrice || 500
+      if (item.artwork.price < min) onPriceChange(item.artwork.id, min)
+    })
+  }, [])
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -542,7 +548,10 @@ function CheckoutModal({
     setOrderError('')
     
     try {
-      const picture_ids = items.map(item => item.artwork.id)
+      const items_payload = items.map(item => ({
+        picture_id: item.artwork.id,
+        offered_price: item.artwork.price,
+      }))
       
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -551,7 +560,7 @@ function CheckoutModal({
           customer_name: form.name,
           customer_email: form.email,
           customer_phone: form.phone,
-          picture_ids: picture_ids,
+          items: items_payload,
         }),
       })
 
@@ -916,6 +925,14 @@ function ContactSection() {
 export default function App() {
   const [artworks, setArtworks] = useState<Artwork[]>(ARTWORKS)
   const [cart, setCart] = useState<CartItem[]>([])
+
+  function handlePriceChange(id: number, price: number) {
+    setCart(prev => prev.map(item =>
+      item.artwork.id === id
+        ? { ...item, artwork: { ...item.artwork, price } }
+        : item
+    ))
+  }
   const [cartOpen, setCartOpen] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [selectedArtwork, setSelectedArtwork] = useState<Artwork | null>(null)
@@ -1335,6 +1352,7 @@ export default function App() {
           onRemove={removeFromCart}
           onChangeQty={changeQty}
           onCheckout={() => { setCartOpen(false); setCheckoutOpen(true) }}
+          onPriceChange={handlePriceChange}
         />
       )}
 
@@ -1346,6 +1364,7 @@ export default function App() {
             setCheckoutOpen(false)
             if (cleared) setCart([])
           }}
+          onPriceChange={handlePriceChange}
         />
       )}
     </div>
