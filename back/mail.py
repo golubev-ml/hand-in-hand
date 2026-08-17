@@ -56,7 +56,7 @@ def build_order_html(name: str, items: list[dict], total: float) -> str:
               border-radius:16px;padding:32px;">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
       <img src="{BASE_URL}/logo.png" alt="" width="44" height="44" style="border-radius:50%;" />
-      <div style="font-size:20px;font-weight:bold;color:#4A7C59;">Краски детства</div>
+      <div style="font-size:20px;font-weight:bold;color:#4A7C59;">Искусство чтобы жить</div>
     </div>
 
     <h1 style="font-size:26px;margin:0 0 10px;color:#2C2416;">
