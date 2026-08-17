@@ -1,5 +1,6 @@
 """Заказы: покупка рисунков с отправкой письма покупателю."""
 import json
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
@@ -7,6 +8,7 @@ from database import get_db
 from mail import build_order_html, send_email
 from models import Order, Picture, Log
 from schemas import PictureOrderCreate, OrderOut
+from archive import archive_expired
 
 router = APIRouter(prefix="/api/orders", tags=["Заказы"])
 
@@ -14,6 +16,9 @@ router = APIRouter(prefix="/api/orders", tags=["Заказы"])
 @router.post("", response_model=OrderOut)
 def create_order(data: PictureOrderCreate, response: Response, db: Session = Depends(get_db)):
     """Создание заказа картин с проверкой оплаты по телефону."""
+
+    # HIH-1: ленивая чистка — sold старше недели уходят в archive
+    archive_expired(db)
     
     # Получаем картины и проверяем их существование
     pictures = db.query(Picture).filter(Picture.id.in_(data.picture_ids)).all()
@@ -94,9 +99,11 @@ def create_order(data: PictureOrderCreate, response: Response, db: Session = Dep
     
     # При успешной оплате отмечаем картины как проданные
     if payment_status == "paid":
+        now = datetime.now()
         for picture in pictures:
             picture.status = "sold"
             picture.order_id = order.id
+            picture.sold_at = now
     
     # Логируем
     db.add(Log(

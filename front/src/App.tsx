@@ -20,6 +20,7 @@ interface Artwork {
   isFeatured: boolean
   story: string
   popularity: number
+  status?: string
 }
 
 interface CartItem {
@@ -216,10 +217,12 @@ function ArtworkCard({
     digital: 'Цифровое',
   }
 
+  const isSold = artwork.status === 'sold'
+  
   return (
     <div
       onClick={onView}
-      className="group bg-[#FFFCF7] rounded-2xl overflow-hidden border border-[#E8DCC8] cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+      className={`group bg-[#FFFCF7] rounded-2xl overflow-hidden border border-[#E8DCC8] transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${isSold ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'}`}
     >
       <div className="relative overflow-hidden bg-[#F5EFE3]" style={{ aspectRatio: '4/3' }}>
         {!imgLoaded && (
@@ -236,17 +239,24 @@ function ArtworkCard({
             Новинка
           </span>
         )}
+        {isSold && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <span className="bg-[#4A7C59] text-white px-4 py-2 rounded-full text-sm font-bold">Продано</span>
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        <button
-          onClick={handleAdd}
-          className={`absolute bottom-3 right-3 text-sm font-semibold px-4 py-2 rounded-full transition-all duration-300 transform translate-y-2 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 ${
-            added
-              ? 'bg-[#4A7C59] text-white'
-              : 'bg-white text-[#2C2416] hover:bg-[#4A7C59] hover:text-white'
-          }`}
-        >
-          {added ? '✓ Добавлено' : '+ В корзину'}
-        </button>
+        {!isSold && (
+          <button
+            onClick={handleAdd}
+            className={`absolute bottom-3 right-3 text-sm font-semibold px-4 py-2 rounded-full transition-all duration-300 transform translate-y-2 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 ${
+              added
+                ? 'bg-[#4A7C59] text-white'
+                : 'bg-white text-[#2C2416] hover:bg-[#4A7C59] hover:text-white'
+            }`}
+          >
+            {added ? '✓ Добавлено' : '+ В корзину'}
+          </button>
+        )}
       </div>
       <div className="p-4">
         <div className="flex items-start justify-between gap-2 mb-1">

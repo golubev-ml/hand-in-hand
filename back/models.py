@@ -39,6 +39,7 @@ class Picture(Base):
     image_path_mail = Column(String(500), default="")
     image_path_mobile = Column(String(500), default="")
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=True)
+    sold_at = Column(DateTime, nullable=True)                    # HIH-1: когда ушла в sold
 
 
 class Order(Base):
