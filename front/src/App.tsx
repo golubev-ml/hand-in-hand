@@ -154,6 +154,21 @@ function scrollTo(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
 }
 
+const FOOTER_INFO: Record<string, string[]> = {
+  'О нас': ['Фонд «Искусство чтобы жить» основан в 2012 году группой педагогов и художников. Мы помогаем детям из малообеспеченных семей, сиротам и детям с особенностями развития находить себя через творчество.', 'Раздел наполняется командой фонда.'],
+  'Наши проекты': ['Студии рисунка в восьми городах России, бесплатные материалы и занятия для всех детей.', 'Раздел наполняется командой фонда.'],
+  'Отчёты': ['Здесь будут публиковаться годовые отчёты фонда: финансы, программы, результаты.', 'Раздел наполняется командой фонда.'],
+  'Партнёры': ['Мы сотрудничаем с галереями, школами искусства и компаниями, которые поддерживают детское творчество.', 'Раздел наполняется командой фонда.'],
+  'Все работы': ['Полная галерея работ наших студий: живопись, рисунки и цифровое искусство.', 'Раздел наполняется командой фонда.'],
+  'Живопись': ['Подборка живописных работ студентов.', 'Раздел наполняется командой фонда.'],
+  'Рисунки': ['Подборка графических работ студентов.', 'Раздел наполняется командой фонда.'],
+  'Цифровое искусство': ['Подборка работ, созданных в цифровых техниках.', 'Раздел наполняется командой фонда.'],
+  'Пожертвовать': ['Ваше пожертвование идёт на материалы, занятия и выставки для детей. 30% с каждой продажи также возвращается в фонд.', 'Раздел наполняется командой фонда.'],
+  'Купить работу': ['Покупая работу, вы поддерживаете ребёнка-автора и фонд. Оформление заказа занимает пару минут.', 'Раздел наполняется командой фонда.'],
+  'Стать волонтёром': ['Мы ищем волонтёров для занятий, выставок и организации мероприятий.', 'Раздел наполняется командой фонда.'],
+  'Корпоративное партнёрство': ['Программы для компаний: благотворительные выставки, закупка работ, волонтёрские дни.', 'Раздел наполняется командой фонда.'],
+}
+
 const CATEGORY_LABELS: Record<FilterCategory, string> = {
   all: 'Все работы',
   drawing: 'Рисунки',
@@ -567,7 +582,7 @@ function CheckoutModal({
               Покупая работы наших детей, вы помогаете им расти, верить в себя и видеть мир прекрасным. Это важнее, чем кажется.
             </p>
             <div className="bg-[#E8F2EB] rounded-2xl p-4 mb-6 text-sm text-[#4A7C59]">
-              🌱 <strong>{fmt(Math.round(total * 0.3))}</strong> из вашего заказа поступят в фонд «Краски детства»
+              🌱 <strong>{fmt(Math.round(total * 0.3))}</strong> из вашего заказа поступят в фонд «Искусство чтобы жить»
             </div>
             <button
               onClick={() => onClose(true)}
@@ -841,16 +856,6 @@ function ContactSection() {
                 </div>
               ))}
             </div>
-            <div className="flex gap-3 mt-8">
-              {['ВКонтакте', 'Telegram', 'Instagram'].map(s => (
-                <span
-                  key={s}
-                  className="bg-white border border-[#E8DCC8] text-[#6B5B42] text-xs font-semibold px-4 py-2 rounded-full cursor-pointer hover:bg-[#E8F2EB] hover:border-[#4A7C59] hover:text-[#4A7C59] transition-colors"
-                >
-                  {s}
-                </span>
-              ))}
-            </div>
           </div>
           <form onSubmit={handleSubmit} className="space-y-4">
             {[
@@ -906,6 +911,7 @@ export default function App() {
   const [selectedArtwork, setSelectedArtwork] = useState<Artwork | null>(null)
   const [filter, setFilter] = useState<FilterCategory>('all')
   const [sort, setSort] = useState<SortKey>('popular')
+  const [footerInfo, setFooterInfo] = useState<string | null>(null)
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -984,7 +990,7 @@ export default function App() {
 >
   <img
     src="/logo.png"
-    alt="Логотип «Краски детства»"
+    alt="Логотип «Искусство чтобы жить»"
     className="w-10 h-10 rounded-full object-cover"
   />
   <span
@@ -992,7 +998,7 @@ export default function App() {
     scrolled ? 'text-[#4A7C59]' : 'text-[#FEFAF4]'
   }`}
 >
-  Краски детства
+  Искусство чтобы жить
 </span>
 </button>
 
@@ -1152,7 +1158,7 @@ export default function App() {
               Мы верим, что каждый ребёнок — художник
             </h2>
             <p className="text-[#6B5B42] leading-relaxed mb-5 text-lg">
-              Фонд «Краски детства» основан в 2012 году группой педагогов и художников. Мы работаем с детьми из малообеспеченных семей, сиротами и детьми с особенностями развития — и помогаем им найти себя через искусство.
+              Фонд «Искусство чтобы жить» основан в 2012 году группой педагогов и художников. Мы работаем с детьми из малообеспеченных семей, сиротами и детьми с особенностями развития — и помогаем им найти себя через искусство.
             </p>
             <p className="text-[#6B5B42] leading-relaxed mb-8">
               Наши студии работают в восьми городах России. Каждый ребёнок получает бесплатные материалы, занятия и возможность показать свои работы на выставке или продать их через нашу галерею. Вырученные средства идут обратно в фонд — и помогают следующему ребёнку.
@@ -1214,34 +1220,6 @@ export default function App() {
           </div>
 
           {/* Filters & Sort */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-8">
-            <div className="flex flex-wrap gap-2">
-              {(Object.keys(CATEGORY_LABELS) as FilterCategory[]).map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-4 py-2 rounded-full text-sm font-semibold transition-all ${
-                    filter === f
-                      ? 'bg-[#4A7C59] text-white'
-                      : 'bg-white border border-[#E8DCC8] text-[#6B5B42] hover:border-[#4A7C59] hover:text-[#4A7C59]'
-                  }`}
-                >
-                  {CATEGORY_LABELS[f]}
-                </button>
-              ))}
-            </div>
-            <div className="sm:ml-auto">
-              <select
-                value={sort}
-                onChange={e => setSort(e.target.value as SortKey)}
-                className="border border-[#E8DCC8] rounded-full px-4 py-2 text-sm font-semibold text-[#6B5B42] bg-white outline-none focus:border-[#4A7C59] cursor-pointer"
-              >
-                {(Object.keys(SORT_LABELS) as SortKey[]).map(s => (
-                  <option key={s} value={s}>{SORT_LABELS[s]}</option>
-                ))}
-              </select>
-            </div>
-          </div>
 
           {/* Grid */}
           <div className="gallery-grid">
@@ -1278,7 +1256,7 @@ export default function App() {
             <div>
               <div className="flex items-center gap-2.5 mb-4">
                 <div className="w-8 h-8 bg-[#4A7C59] rounded-xl flex items-center justify-center text-white text-lg font-bold" style={{ fontFamily: 'var(--font-serif)' }}>К</div>
-                <span className="font-serif text-white text-lg">Краски детства</span>
+                <span className="font-serif text-white text-lg">Искусство чтобы жить</span>
               </div>
               <p className="text-[#A89070] text-sm leading-relaxed">
                 Благотворительный фонд поддержки детского творчества. Работаем с 2012 года.
@@ -1288,7 +1266,7 @@ export default function App() {
               <h4 className="font-semibold text-white mb-4 text-sm">Фонд</h4>
               <ul className="space-y-2">
                 {['О нас', 'Наши проекты', 'Отчёты', 'Партнёры'].map(l => (
-                  <li key={l}><span className="text-[#A89070] text-sm hover:text-white cursor-pointer transition-colors">{l}</span></li>
+                  <li key={l}><button onClick={() => setFooterInfo(l)} className="text-[#A89070] text-sm hover:text-white cursor-pointer transition-colors text-left">{l}</button></li>
                 ))}
               </ul>
             </div>
@@ -1296,7 +1274,7 @@ export default function App() {
               <h4 className="font-semibold text-white mb-4 text-sm">Галерея</h4>
               <ul className="space-y-2">
                 {['Все работы', 'Живопись', 'Рисунки', 'Цифровое искусство'].map(l => (
-                  <li key={l}><span className="text-[#A89070] text-sm hover:text-white cursor-pointer transition-colors">{l}</span></li>
+                  <li key={l}><button onClick={() => setFooterInfo(l)} className="text-[#A89070] text-sm hover:text-white cursor-pointer transition-colors text-left">{l}</button></li>
                 ))}
               </ul>
             </div>
@@ -1304,17 +1282,32 @@ export default function App() {
               <h4 className="font-semibold text-white mb-4 text-sm">Помочь</h4>
               <ul className="space-y-2">
                 {['Пожертвовать', 'Купить работу', 'Стать волонтёром', 'Корпоративное партнёрство'].map(l => (
-                  <li key={l}><span className="text-[#A89070] text-sm hover:text-white cursor-pointer transition-colors">{l}</span></li>
+                  <li key={l}><button onClick={() => setFooterInfo(l)} className="text-[#A89070] text-sm hover:text-white cursor-pointer transition-colors text-left">{l}</button></li>
                 ))}
               </ul>
             </div>
           </div>
           <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-[#6B5B42] text-xs">© 2024 Благотворительный фонд «Краски детства». Все права защищены.</p>
+            <p className="text-[#6B5B42] text-xs">© 2024 Благотворительный фонд «Искусство чтобы жить». Все права защищены.</p>
             <p className="text-[#6B5B42] text-xs">ИНН 7712345678 · ОГРН 1127799000001</p>
           </div>
         </div>
       </footer>
+
+      {/* ── Footer info modal ── */}
+      {footerInfo && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={() => setFooterInfo(null)}>
+          <div className="bg-[#FBF7EE] rounded-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-8" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="font-serif text-2xl text-[#2C2416]">{footerInfo}</h3>
+              <button onClick={() => setFooterInfo(null)} className="text-[#6B5B42] hover:text-[#2C2416] text-2xl leading-none" aria-label="Закрыть">×</button>
+            </div>
+            {(FOOTER_INFO[footerInfo] || ['Раздел наполняется командой фонда.']).map((par, i) => (
+              <p key={i} className="text-[#6B5B42] leading-relaxed mb-4">{par}</p>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Modals & Sidebars ── */}
       {selectedArtwork && (

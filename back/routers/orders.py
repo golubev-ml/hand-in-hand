@@ -70,7 +70,7 @@ def create_order(data: PictureOrderCreate, response: Response, db: Session = Dep
             )
             send_email(
                 data.customer_email,
-                "Краски детства — спасибо за вашу покупку!",
+                "Искусство чтобы жить — спасибо за вашу покупку!",
                 html,
                 items=mail_items,
             )
