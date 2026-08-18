@@ -152,10 +152,11 @@ def pictures(login: str = Depends(current_admin), db: Session = Depends(get_db))
                 <option {'selected' if p.status == 'sold' else ''}>sold</option>
                 <option {'selected' if p.status == 'archive' else ''}>archive</option>
             </select></form></td>
+        <td>{p.sold_at.strftime('%d.%m %H:%M') if p.sold_at else '—'}</td>
         <td><form method="post" action="/admin/pictures/{p.id}/delete" style="margin:0"><button>удалить</button></form></td>
         </tr>"""
     body = f"""<h2>Рисунки</h2><div class="card"><table>
-    <tr><th>Превью</th><th>Название</th><th>Имя ребёнка</th><th>Возраст</th><th>Цена</th><th>Статус</th><th></th></tr>{tr}</table></div>"""
+    <tr><th>Превью</th><th>Название</th><th>Имя ребёнка</th><th>Возраст</th><th>Цена</th><th>Статус</th><th>Смена статуса</th><th></th></tr>{tr}</table></div>"""
     return page("Рисунки", body, login)
 
 
