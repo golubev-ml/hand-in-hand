@@ -73,6 +73,7 @@ class PictureOut(BaseModel):
     isFeatured: bool
     story: str
     popularity: int
+    status: str = "available"
 
 
 # ---------- Пожертвования и Заказы ----------

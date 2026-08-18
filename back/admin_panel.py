@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 from PIL import Image
 
+from datetime import datetime
 import jwt
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -246,7 +247,15 @@ async def picture_status(picture_id: int, request: Request, login: str = Depends
     form = await request.form()
     picture = db.get(Picture, picture_id)
     if picture:
-        picture.status = form.get("status", picture.status)
+        new_status = form.get("status", picture.status)
+        # HIH-1: реально проданную (с заказом) нельзя вернуть в продажу
+        if picture.order_id is not None and new_status == "available":
+            return HTMLResponse("Картина продана через заказ — вернуть в продажу нельзя", status_code=400)
+        if new_status == "sold" and picture.status != "sold":
+            picture.sold_at = datetime.now()
+        if new_status == "available" and picture.status == "sold":
+            picture.sold_at = None
+        picture.status = new_status
         db.commit()
     return RedirectResponse("/admin/pictures", status_code=302)
 

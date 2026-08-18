@@ -8,6 +8,7 @@ from auth import get_current_manager
 from database import get_db
 from models import Manager, Picture
 from schemas import PictureCreate, PictureOut, PictureUpdate
+from archive import archive_expired
 
 router = APIRouter(prefix="/api/pictures", tags=["Рисунки"])
 
@@ -31,15 +32,19 @@ def _to_front(p: Picture) -> dict:
         "isFeatured": bool(p.is_featured),
         "story": p.history or "",
         "popularity": p.popularity or 0,
+        "status": p.status or "available",
     }
 
 
 @router.get("", response_model=list[PictureOut])
 def list_pictures(status: str | None = None, db: Session = Depends(get_db)):
     """Публичный список рисунков. Фильтр: /api/pictures?status=sold"""
+    archive_expired(db)  # HIH-1: ленивое архивирование
     query = db.query(Picture)
     if status:
         query = query.filter(Picture.status == status)
+    else:
+        query = query.filter(Picture.status.in_(["available", "sold"]))
     return [_to_front(p) for p in query.order_by(Picture.time.desc()).all()]
 
 
