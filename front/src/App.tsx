@@ -241,9 +241,10 @@ function ArtworkCard({
           </span>
         )}
         {isSold && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-            <span className="bg-[#4A7C59] text-white px-4 py-2 rounded-full text-sm font-bold">Продано</span>
-          </div>
+          <>
+            <div className="absolute inset-0 bg-black/20" />
+            <span className="absolute top-3 right-3 bg-[#4A7C59] text-white px-3 py-1.5 rounded-full text-xs font-bold">Продано</span>
+          </>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         {!isSold && (
