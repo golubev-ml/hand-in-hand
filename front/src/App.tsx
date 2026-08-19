@@ -296,6 +296,7 @@ function ArtworkModal({
   onClose: () => void
   onBuy: (artwork: Artwork, price: number) => void
 }) {
+  const isSold = artwork.status === 'sold'
   const [price, setPrice] = useState(artwork.minPrice || 500)
 
   useEffect(() => {
@@ -357,25 +358,33 @@ function ArtworkModal({
             </div>
 
             <div className="mt-auto">
-              <div className="mb-4">
-                <label className="block text-xs text-[#A89070] mb-1">Ваша цена (от {fmt(artwork.minPrice || 500)})</label>
-                <input
-                  type="number"
-                  min={artwork.minPrice || 500}
-                  step="50"
-                  value={price}
-                  onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
-                  onBlur={() => setPrice(Math.max(price, artwork.minPrice || 500))}
-                  className="w-full border border-[#E8DCC8] rounded-lg px-3 py-2 text-lg font-bold text-[#4A7C59] focus:border-[#4A7C59] outline-none"
-                  placeholder="Ваша цена"
-                />
-              </div>
-              <button
-                onClick={handleBuy}
-                className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#2C2416] text-white hover:bg-[#4A7C59] transition-all duration-300"
-              >
-                Перейти к оплате
-              </button>
+              {isSold ? (
+                <div className="bg-[#F5F0E8] rounded-xl p-4 text-center">
+                  <p className="text-[#6B5B42] font-semibold">Эта картина уже продана</p>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <label className="block text-xs text-[#A89070] mb-1">Ваша цена (от {fmt(artwork.minPrice || 500)})</label>
+                    <input
+                      type="number"
+                      min={artwork.minPrice || 500}
+                      step="50"
+                      value={price}
+                      onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                      onBlur={() => setPrice(Math.max(price, artwork.minPrice || 500))}
+                      className="w-full border border-[#E8DCC8] rounded-lg px-3 py-2 text-lg font-bold text-[#4A7C59] focus:border-[#4A7C59] outline-none"
+                      placeholder="Ваша цена"
+                    />
+                  </div>
+                  <button
+                    onClick={handleBuy}
+                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#2C2416] text-white hover:bg-[#4A7C59] transition-all duration-300"
+                  >
+                    Перейти к оплате
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
