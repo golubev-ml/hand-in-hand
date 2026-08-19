@@ -70,6 +70,12 @@ img.thumb{width:60px;height:60px;object-fit:cover}
 .btn-warn{background:#f59e0b;color:#fff}
 .btn-danger{background:#ef4444;color:#fff}
 .col-actions{white-space:nowrap}
+#toast{position:fixed;top:16px;right:16px;z-index:1000;padding:12px 18px;border-radius:8px;color:#fff;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:360px;box-shadow:0 4px 12px rgba(0,0,0,.25)}
+#toast.ok{background:#16a34a}
+#toast.err{background:#dc2626}
+[data-tip]{position:relative}
+[data-tip]:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#111827;color:#fff;font-size:11px;padding:4px 8px;border-radius:4px;white-space:nowrap;z-index:200;pointer-events:none}
+[data-tip]:hover::before{content:"";position:absolute;bottom:calc(100% + 2px);left:50%;transform:translateX(-50%);border:4px solid transparent;border-top-color:#111827;z-index:200;pointer-events:none}
 </style></head><body>
 <header><b>Админка</b>
 <a href="/admin/">Статистика</a>
@@ -157,6 +163,7 @@ def pictures(login: str = Depends(current_admin), db: Session = Depends(get_db))
     # HIH-3: собираем данные заказов для колонки "Продано за" и отмены
     order_ids = [p.order_id for p in rows if p.order_id]
     orders = {o.id: o for o in db.query(Order).filter(Order.id.in_(order_ids)).all()} if order_ids else {}
+    meta = {}
     tr = ""
     for p in rows:
         title = html.escape(getattr(p, "title", "") or f"#{p.id}")
@@ -165,21 +172,21 @@ def pictures(login: str = Depends(current_admin), db: Session = Depends(get_db))
         min_price = getattr(p, "min_price", 500) or 500
         # "Продано за" — ищем цену по picture.id в items snapshot заказа
         sold_for = "—"
-        status_changed = p.sold_at.strftime('%d.%m %H:%M') if p.sold_at else '—'
+        meta[p.id] = {"title": getattr(p, "title", "") or f"#{p.id}", "img": p.image_path, "history": getattr(p, "history", "") or ""}
+        changed = p.status_changed_at or p.sold_at
+        status_changed = changed.strftime('%d.%m %H:%M') if changed else '—'
         cancel_btn = ""
         if p.order_id:
             o = orders.get(p.order_id)
             if o:
                 if o.cancelled_at:
                     sold_for = f'<span style="color:#9ca3af">отменено</span>'
-                    status_changed = o.cancelled_at.strftime('%d.%m %H:%M')
                 else:
                     for item in (o.items or []):
                         if item.get("id") == p.id:
                             sold_for = f'{int(item.get("price", 0))} ₽'
                             break
-                    status_changed = o.created_at.strftime('%d.%m %H:%M')
-            cancel_btn = f'<button type="button" class="btn-icon btn-warn" onclick="cancelOrder({p.id})">⤺</button>'
+            cancel_btn = f'<button type="button" class="btn-icon btn-warn" data-tip="Отменить заказ (вернуть в продажу)" onclick="cancelOrder({p.id})">⤺</button>'
         elif p.status == "sold":
             sold_for = "ручной"
         history_short = html.escape((getattr(p, "history", "") or "")[:40])
@@ -191,24 +198,26 @@ def pictures(login: str = Depends(current_admin), db: Session = Depends(get_db))
         <td contenteditable="true" data-field="author">{author}</td>
         <td contenteditable="true" data-field="age" style="max-width:60px">{age}</td>
         <td contenteditable="true" data-field="min_price" style="max-width:80px">{int(min_price)}</td>
-        <td><form method="post" action="/admin/pictures/{p.id}/status" style="margin:0">
-            <select name="status" onchange="this.form.submit()">
+        <td>
+            <select onchange="changeStatus({p.id}, this)" data-prev="{p.status}">
                 <option {'selected' if p.status == 'available' else ''}>available</option>
                 <option {'selected' if p.status == 'sold' else ''}>sold</option>
                 <option {'selected' if p.status == 'archive' else ''}>archive</option>
-            </select></form></td>
+            </select></td>
         <td>{status_changed}</td>
         <td>{sold_for}</td>
         <td class="col-actions">
-            <button type="button" class="btn-icon" onclick="openHistory({p.id}, {json.dumps(title)}, {json.dumps(history_short)}, {json.dumps(getattr(p, 'history', '') or '')}, {json.dumps(p.image_path)})">📖</button>
+            <button type="button" class="btn-icon" data-tip="История работы" onclick="openHistory({p.id})">📖</button>
             {cancel_btn}
             <form method="post" action="/admin/pictures/{p.id}/delete" style="margin:0;display:inline" onsubmit="return confirm('Удалить картину?')">
-                <button type="submit" class="btn-icon btn-danger">✕</button>
+                <button type="submit" class="btn-icon btn-danger" data-tip="Удалить картину">✕</button>
             </form>
         </td>
         </tr>"""
     body = f"""<h2>Рисунки</h2><div class="card"><table>
-    <tr><th>Превью</th><th>Название</th><th>Имя</th><th>Возраст</th><th>Мин.</th><th>Статус</th><th>Смена</th><th>Продано за</th><th></th></tr>{tr}</table></div>
+    <tr><th>Превью</th><th>Название</th><th>Имя</th><th>Возраст</th><th>Мин.</th><th>Статус</th><th>Смена статуса</th><th>Продано за</th><th></th></tr>{tr}</table></div>
+<script type="application/json" id="hist-data">{json.dumps(meta, ensure_ascii=False)}</script>
+<div id="toast"></div>
 <script>
 document.querySelectorAll('td[contenteditable]').forEach(td => {{
     let orig = td.textContent;
@@ -236,29 +245,46 @@ document.querySelectorAll('td[contenteditable]').forEach(td => {{
             setTimeout(() => td.classList.remove('flash-ok'), 1000);
             orig = td.textContent;
         }} catch (e) {{
-            alert('Не удалось: ' + e.message);
+            toast('Не удалось: ' + e.message, false);
             td.textContent = orig;
             td.classList.add('flash-err');
             setTimeout(() => td.classList.remove('flash-err'), 1500);
         }}
     }}
 }});
+function toast(msg, ok) {{
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = ok ? 'ok' : 'err';
+    t.style.opacity = 1;
+    clearTimeout(t._h);
+    t._h = setTimeout(() => t.style.opacity = 0, 4000);
+}}
+async function changeStatus(id, sel) {{
+    const fd = new FormData();
+    fd.append('status', sel.value);
+    const r = await fetch(`/admin/pictures/${{id}}/status`, {{method: 'POST', body: fd}});
+    if (r.ok) {{ toast('Статус обновлён: ' + sel.value, true); setTimeout(() => location.reload(), 700); }}
+    else {{ const j = await r.json().catch(() => ({{detail: 'Ошибка'}})); toast(j.detail, false); sel.value = sel.dataset.prev; }}
+}}
 async function cancelOrder(id) {{
     if (!confirm('Отменить заказ? Картина вернётся в продажу, заказ будет помечен как отменённый.')) return;
     const r = await fetch(`/admin/pictures/${{id}}/cancel_order`, {{method: 'POST'}});
-    if (r.ok) location.reload();
-    else {{ const j = await r.json().catch(() => ({{detail: 'Ошибка'}})); alert('Ошибка: ' + j.detail); }}
+    if (r.ok) {{ toast('Заказ отменён, картина снова в продаже', true); setTimeout(() => location.reload(), 700); }}
+    else {{ const j = await r.json().catch(() => ({{detail: 'Ошибка'}})); toast('Ошибка: ' + j.detail, false); }}
 }}
-function openHistory(id, title, short, full, img) {{
+const META = JSON.parse(document.getElementById('hist-data').textContent);
+function openHistory(id) {{
+    const m = META[id];
     document.querySelectorAll('.modal-bg').forEach(e => e.remove());
     const bg = document.createElement('div');
     bg.className = 'modal-bg';
     bg.onclick = e => {{ if (e.target === bg) bg.remove(); }};
     bg.innerHTML = `<div class="modal">
-        <img src="${{img}}">
-        <h3>${{title}}</h3>
-        <textarea id="h-text">${{full.replace(/</g,'&lt;')}}</textarea>
-        <div class="meta">Минимальная цена: 500 ₽ (редактируется в таблице)</div>
+        <img src="${{m.img}}">
+        <h3>${{m.title}}</h3>
+        <textarea id="h-text">${{(m.history || '').replace(/</g,'&lt;')}}</textarea>
+        <div class="meta">Мин. цена редактируется прямо в таблице</div>
         <div style="margin-top:12px;text-align:right">
             <button type="button" onclick="this.closest('.modal-bg').remove()">Отмена</button>
             <button type="button" onclick="saveHistory(${{id}})">Сохранить</button>
@@ -335,6 +361,7 @@ async def picture_cancel_order(picture_id: int, login: str = Depends(current_adm
     p.order_id = None
     p.sold_at = None
     p.status = "available"
+    p.status_changed_at = datetime.now()
     db.commit()
     return {"ok": True}
 
@@ -426,20 +453,26 @@ async def upload_save(
 
 @router.post("/pictures/{picture_id}/status")
 async def picture_status(picture_id: int, request: Request, login: str = Depends(current_admin), db: Session = Depends(get_db)):
+    """HIH-3: смена статуса через fetch (тосты в админке)."""
     form = await request.form()
     picture = db.get(Picture, picture_id)
-    if picture:
-        new_status = form.get("status", picture.status)
-        # HIH-1: реально проданную (с заказом) нельзя вернуть в продажу
-        if picture.order_id is not None and new_status == "available":
-            return HTMLResponse("Картина продана через заказ — вернуть в продажу нельзя", status_code=400)
-        if new_status == "sold" and picture.status != "sold":
+    if not picture:
+        raise HTTPException(status_code=404, detail="Картина не найдена")
+    new_status = form.get("status", picture.status)
+    if new_status not in ("available", "sold", "archive"):
+        raise HTTPException(status_code=400, detail="Неизвестный статус")
+    # HIH-1: реально проданную (с заказом) нельзя вернуть в продажу
+    if picture.order_id is not None and new_status == "available":
+        raise HTTPException(status_code=400, detail="Картина продана через заказ — используй «⤺ отмена заказа»")
+    if new_status != picture.status:
+        if new_status == "sold":
             picture.sold_at = datetime.now()
         if new_status == "available" and picture.status == "sold":
             picture.sold_at = None
         picture.status = new_status
+        picture.status_changed_at = datetime.now()
         db.commit()
-    return RedirectResponse("/admin/pictures", status_code=302)
+    return {"ok": True}
 
 
 @router.post("/pictures/{picture_id}/delete")

@@ -16,6 +16,7 @@ def archive_expired(db) -> int:
     )
     for p in expired:
         p.status = "archive"
+        p.status_changed_at = datetime.now()
     if expired:
         db.commit()
     return len(expired)
