@@ -494,7 +494,7 @@ def orders(login: str = Depends(current_admin), db: Session = Depends(get_db)):
         <td>{o.created_at:%m-%d %H:%M}</td>
         <td>{html.escape(o.customer_name)}</td>
         <td>{html.escape(o.customer_email)}</td>
-        <td>{html.escape(o.customer_phone)}</td>
+        <td>{html.escape(o.customer_phone) if o.customer_phone else '—'}</td>
         <td>{o.total} ₽</td>
         <td><span style="background:#{'#dcfce7' if o.payment_status == 'paid' else '#fee2e2'};padding:2px 6px;border-radius:3px">{o.payment_status}</span></td>
         <td><span style="background:#{'#dcfce7' if o.email_status == 'sent' else '#fef3c7'};padding:2px 6px;border-radius:3px">{o.email_status}</span></td>

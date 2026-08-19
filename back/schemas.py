@@ -103,7 +103,7 @@ class PictureOrderCreate(BaseModel):
     """Заказ картин (HIH-2): цену выбирает покупатель, не ниже min_price."""
     customer_name: str = Field(min_length=1, max_length=100)
     customer_email: str = Field(min_length=3, max_length=254)
-    customer_phone: str = Field(min_length=1, max_length=20)
+    customer_phone: str = Field(default="", max_length=20)  # HIH-4: телефон убран из формы
     items: list[OrderPictureItem] = Field(min_length=1)
 
 
