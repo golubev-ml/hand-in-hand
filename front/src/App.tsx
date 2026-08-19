@@ -969,21 +969,22 @@ export default function App() {
     setCart(prev => {
       const existing = prev.find(i => i.artwork.id === artwork.id)
       if (existing) return prev
-      return [...prev, { artwork, qty: 1 }]
+      return [...prev, { artwork: { ...artwork, price: artwork.minPrice || 500 }, qty: 1 }]
     })
   }
 
   function handleBuy(artwork: Artwork, price: number) {
+    const finalPrice = price || artwork.minPrice || 500
     setCart(prev => {
       const existing = prev.find(i => i.artwork.id === artwork.id)
       if (existing) {
         return prev.map(i => 
           i.artwork.id === artwork.id 
-            ? { ...i, artwork: { ...i.artwork, price }, qty: 1 }
+            ? { ...i, artwork: { ...i.artwork, price: finalPrice }, qty: 1 }
             : i
         )
       }
-      return [...prev, { artwork: { ...artwork, price }, qty: 1 }]
+      return [...prev, { artwork: { ...artwork, price: finalPrice }, qty: 1 }]
     })
     setCartOpen(false)
     setCheckoutOpen(true)
