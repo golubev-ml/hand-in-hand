@@ -401,6 +401,7 @@ function CartSidebar({
   onRemove,
   onChangeQty,
   onCheckout,
+  onPriceChange,
 }: {
   items: CartItem[]
   onClose: () => void
@@ -464,6 +465,7 @@ function CartSidebar({
                         step="50"
                         value={item.artwork.price}
                         onChange={(e) => onPriceChange(item.artwork.id, parseFloat(e.target.value) || 0)}
+                        onBlur={() => onPriceChange(item.artwork.id, Math.max(item.artwork.price, item.artwork.minPrice || 500))}
                         className="w-24 border border-[#E8DCC8] rounded-lg px-2 py-1 text-sm font-bold text-[#4A7C59] focus:border-[#4A7C59] outline-none"
                         placeholder="Ваша цена"
                       />
