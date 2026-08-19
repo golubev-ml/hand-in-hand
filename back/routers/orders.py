@@ -93,6 +93,7 @@ def create_order(data: PictureOrderCreate, response: Response, db: Session = Dep
             p.status = "sold"
             p.order_id = order.id
             p.sold_at = now
+            p.status_changed_at = now
 
     db.add(Log(
         text=f"ORDER → {data.customer_email} ({payment_status})",
