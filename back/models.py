@@ -56,6 +56,7 @@ class Order(Base):
     payment_status = Column(String(20), default="pending")   # paid | failed
     email_status = Column(String(20), default="not_sent")    # sent | failed | not_sent
     items = Column(JSON, nullable=False)                     # JSON-снапшот: [{title, author, age, price, description}, ...]
+    cancelled_at = Column(DateTime, nullable=True)           # HIH-3: отмена заказа
 
 
 class Donation(Base):

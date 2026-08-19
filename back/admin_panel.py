@@ -1,3 +1,4 @@
+import json
 """Админка сайта: /admin. Чистый FastAPI, без сторонних админок."""
 import html
 import os
@@ -54,6 +55,21 @@ td,th{border:1px solid #e5e7eb;padding:8px 10px;text-align:left;font-size:14px}
 input,select,button,textarea{padding:8px 10px;margin:4px 0;font-size:14px}
 button{cursor:pointer}
 img.thumb{width:60px;height:60px;object-fit:cover}
+
+[contenteditable]{outline:none;cursor:text}
+[contenteditable]:focus{background:#eef6ff;box-shadow:0 0 0 2px #93c5fd inset}
+.flash-ok{background:#d1fae5 !important;transition:background 0.3s}
+.flash-err{background:#fee2e2 !important;transition:background 0.3s}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:999}
+.modal{background:#fff;border-radius:10px;padding:24px;max-width:600px;width:90%;max-height:90vh;overflow-y:auto}
+.modal h3{margin-top:0}
+.modal img{width:120px;height:120px;object-fit:cover;border-radius:8px;float:left;margin:0 16px 12px 0}
+.modal textarea{width:100%;min-height:140px;font-family:inherit}
+.modal .meta{color:#6b7280;font-size:12px;margin-top:4px}
+.btn-icon{padding:4px 8px !important;margin:0 !important;font-size:12px}
+.btn-warn{background:#f59e0b;color:#fff}
+.btn-danger{background:#ef4444;color:#fff}
+.col-actions{white-space:nowrap}
 </style></head><body>
 <header><b>Админка</b>
 <a href="/admin/">Статистика</a>
@@ -138,26 +154,189 @@ def dashboard(login: str = Depends(current_admin), db: Session = Depends(get_db)
 @router.get("/pictures", response_class=HTMLResponse)
 def pictures(login: str = Depends(current_admin), db: Session = Depends(get_db)):
     rows = db.query(Picture).order_by(Picture.time.desc()).all()
+    # HIH-3: собираем данные заказов для колонки "Продано за" и отмены
+    order_ids = [p.order_id for p in rows if p.order_id]
+    orders = {o.id: o for o in db.query(Order).filter(Order.id.in_(order_ids)).all()} if order_ids else {}
     tr = ""
     for p in rows:
         title = html.escape(getattr(p, "title", "") or f"#{p.id}")
         author = html.escape(getattr(p, "author", "") or "—")
         age = getattr(p, "age", 0) or "—"
-        tr += f"""<tr>
+        min_price = getattr(p, "min_price", 500) or 500
+        # "Продано за" — ищем цену по picture.id в items snapshot заказа
+        sold_for = "—"
+        status_changed = p.sold_at.strftime('%d.%m %H:%M') if p.sold_at else '—'
+        cancel_btn = ""
+        if p.order_id:
+            o = orders.get(p.order_id)
+            if o:
+                if o.cancelled_at:
+                    sold_for = f'<span style="color:#9ca3af">отменено</span>'
+                    status_changed = o.cancelled_at.strftime('%d.%m %H:%M')
+                else:
+                    for item in (o.items or []):
+                        if item.get("id") == p.id:
+                            sold_for = f'{int(item.get("price", 0))} ₽'
+                            break
+                    status_changed = o.created_at.strftime('%d.%m %H:%M')
+            cancel_btn = f'<button type="button" class="btn-icon btn-warn" onclick="cancelOrder({p.id})">⤺</button>'
+        elif p.status == "sold":
+            sold_for = "ручной"
+        history_short = html.escape((getattr(p, "history", "") or "")[:40])
+        if len(getattr(p, "history", "") or "") > 40:
+            history_short += "…"
+        tr += f"""<tr data-id="{p.id}">
         <td><img class="thumb" src="{p.image_path}"></td>
-        <td>{title}</td><td>{author}</td><td>{age}</td><td>{p.price} ₽</td>
+        <td contenteditable="true" data-field="title">{title}</td>
+        <td contenteditable="true" data-field="author">{author}</td>
+        <td contenteditable="true" data-field="age" style="max-width:60px">{age}</td>
+        <td contenteditable="true" data-field="min_price" style="max-width:80px">{int(min_price)}</td>
         <td><form method="post" action="/admin/pictures/{p.id}/status" style="margin:0">
             <select name="status" onchange="this.form.submit()">
                 <option {'selected' if p.status == 'available' else ''}>available</option>
                 <option {'selected' if p.status == 'sold' else ''}>sold</option>
                 <option {'selected' if p.status == 'archive' else ''}>archive</option>
             </select></form></td>
-        <td>{p.sold_at.strftime('%d.%m %H:%M') if p.sold_at else '—'}</td>
-        <td><form method="post" action="/admin/pictures/{p.id}/delete" style="margin:0"><button>удалить</button></form></td>
+        <td>{status_changed}</td>
+        <td>{sold_for}</td>
+        <td class="col-actions">
+            <button type="button" class="btn-icon" onclick="openHistory({p.id}, {json.dumps(title)}, {json.dumps(history_short)}, {json.dumps(getattr(p, 'history', '') or '')}, {json.dumps(p.image_path)})">📖</button>
+            {cancel_btn}
+            <form method="post" action="/admin/pictures/{p.id}/delete" style="margin:0;display:inline" onsubmit="return confirm('Удалить картину?')">
+                <button type="submit" class="btn-icon btn-danger">✕</button>
+            </form>
+        </td>
         </tr>"""
     body = f"""<h2>Рисунки</h2><div class="card"><table>
-    <tr><th>Превью</th><th>Название</th><th>Имя ребёнка</th><th>Возраст</th><th>Цена</th><th>Статус</th><th>Смена статуса</th><th></th></tr>{tr}</table></div>"""
+    <tr><th>Превью</th><th>Название</th><th>Имя</th><th>Возраст</th><th>Мин.</th><th>Статус</th><th>Смена</th><th>Продано за</th><th></th></tr>{tr}</table></div>
+<script>
+document.querySelectorAll('td[contenteditable]').forEach(td => {{
+    let orig = td.textContent;
+    td.addEventListener('blur', save);
+    td.addEventListener('keydown', e => {{
+        if (e.key === 'Enter') {{ e.preventDefault(); td.blur(); }}
+        if (e.key === 'Escape') {{ td.textContent = orig; td.blur(); }}
+    }});
+    td.addEventListener('focus', () => {{ orig = td.textContent; }});
+    async function save() {{
+        const id = td.parentElement.dataset.id;
+        const field = td.dataset.field;
+        const value = td.textContent.trim();
+        if (value === orig) return;
+        try {{
+            const r = await fetch(`/admin/pictures/${{id}}/update`, {{
+                method: 'POST', headers: {{'Content-Type':'application/json'}},
+                body: JSON.stringify({{[field]: value}})
+            }});
+            if (!r.ok) {{
+                const j = await r.json().catch(() => ({{detail: 'Ошибка'}}));
+                throw new Error(j.detail || 'Ошибка');
+            }}
+            td.classList.add('flash-ok');
+            setTimeout(() => td.classList.remove('flash-ok'), 1000);
+            orig = td.textContent;
+        }} catch (e) {{
+            alert('Не удалось: ' + e.message);
+            td.textContent = orig;
+            td.classList.add('flash-err');
+            setTimeout(() => td.classList.remove('flash-err'), 1500);
+        }}
+    }}
+}});
+async function cancelOrder(id) {{
+    if (!confirm('Отменить заказ? Картина вернётся в продажу, заказ будет помечен как отменённый.')) return;
+    const r = await fetch(`/admin/pictures/${{id}}/cancel_order`, {{method: 'POST'}});
+    if (r.ok) location.reload();
+    else {{ const j = await r.json().catch(() => ({{detail: 'Ошибка'}})); alert('Ошибка: ' + j.detail); }}
+}}
+function openHistory(id, title, short, full, img) {{
+    document.querySelectorAll('.modal-bg').forEach(e => e.remove());
+    const bg = document.createElement('div');
+    bg.className = 'modal-bg';
+    bg.onclick = e => {{ if (e.target === bg) bg.remove(); }};
+    bg.innerHTML = `<div class="modal">
+        <img src="${{img}}">
+        <h3>${{title}}</h3>
+        <textarea id="h-text">${{full.replace(/</g,'&lt;')}}</textarea>
+        <div class="meta">Минимальная цена: 500 ₽ (редактируется в таблице)</div>
+        <div style="margin-top:12px;text-align:right">
+            <button type="button" onclick="this.closest('.modal-bg').remove()">Отмена</button>
+            <button type="button" onclick="saveHistory(${{id}})">Сохранить</button>
+        </div>
+    </div>`;
+    document.body.appendChild(bg);
+}}
+async function saveHistory(id) {{
+    const t = document.querySelector('#h-text').value;
+    const r = await fetch(`/admin/pictures/${{id}}/update`, {{
+        method: 'POST', headers: {{'Content-Type':'application/json'}},
+        body: JSON.stringify({{history: t}})
+    }});
+    if (r.ok) location.reload();
+    else {{ const j = await r.json().catch(() => ({{detail: 'Ошибка'}})); alert('Ошибка: ' + j.detail); }}
+}}
+document.addEventListener('keydown', e => {{
+    if (e.key === 'Escape') document.querySelectorAll('.modal-bg').forEach(e => e.remove());
+}});
+</script>"""
     return page("Рисунки", body, login)
+
+
+@router.post("/pictures/{picture_id}/update")
+async def picture_update(picture_id: int, request: Request, login: str = Depends(current_admin), db: Session = Depends(get_db)):
+    """HIH-3: inline-редактирование полей картины (whitelist)."""
+    data = await request.json()
+    p = db.query(Picture).filter(Picture.id == picture_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Картина не найдена")
+    for k, v in data.items():
+        if k in ("title", "author"):
+            v = str(v).strip()
+            if not v:
+                raise HTTPException(status_code=400, detail="Поле не может быть пустым")
+            if len(v) > 200:
+                raise HTTPException(status_code=400, detail="Слишком длинно")
+            setattr(p, k, v)
+        elif k == "age":
+            try:
+                v = int(str(v).strip())
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Возраст — число")
+            if not 1 <= v <= 18:
+                raise HTTPException(status_code=400, detail="Возраст 1–18")
+            p.age = v
+        elif k == "min_price":
+            try:
+                v = float(str(v).strip().replace(",", "."))
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Цена — число")
+            if v < 0:
+                raise HTTPException(status_code=400, detail="Цена ≥ 0")
+            p.min_price = v
+        elif k == "history":
+            p.history = str(v)
+        else:
+            raise HTTPException(status_code=400, detail=f"Поле '{k}' нельзя редактировать")
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/pictures/{picture_id}/cancel_order")
+async def picture_cancel_order(picture_id: int, login: str = Depends(current_admin), db: Session = Depends(get_db)):
+    """HIH-3: отмена заказа — картина возвращается в продажу."""
+    p = db.query(Picture).filter(Picture.id == picture_id).first()
+    if not p:
+        raise HTTPException(status_code=404, detail="Картина не найдена")
+    if p.order_id is None:
+        raise HTTPException(status_code=400, detail="У картины нет заказа (ручной sold — меняй статус списком)")
+    order = db.query(Order).filter(Order.id == p.order_id).first()
+    if order:
+        order.cancelled_at = datetime.now()
+    p.order_id = None
+    p.sold_at = None
+    p.status = "available"
+    db.commit()
+    return {"ok": True}
 
 
 @router.get("/pictures/upload", response_class=HTMLResponse)
