@@ -21,6 +21,7 @@ interface Artwork {
   story: string
   popularity: number
   status?: string
+  minPrice?: number
 }
 
 interface CartItem {
@@ -191,10 +192,14 @@ function ArtworkCard({
   artwork,
   onView,
   onAdd,
+  onBuy,
+  inCart,
 }: {
   artwork: Artwork
   onView: () => void
   onAdd: () => void
+  onBuy: (artwork: Artwork, price: number) => void
+  inCart: boolean
 }) {
   const [added, setAdded] = useState(false)
   const [imgLoaded, setImgLoaded] = useState(false)
@@ -248,14 +253,16 @@ function ArtworkCard({
         <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         {!isSold && (
           <button
-            onClick={handleAdd}
+            onClick={inCart ? () => onBuy(artwork, artwork.price) : handleAdd}
             className={`absolute bottom-3 right-3 text-sm font-semibold px-4 py-2 rounded-full transition-all duration-300 transform translate-y-2 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 ${
-              added
+              inCart
+                ? 'bg-[#4A7C59] text-white'
+                : added
                 ? 'bg-[#4A7C59] text-white'
                 : 'bg-white text-[#2C2416] hover:bg-[#4A7C59] hover:text-white'
             }`}
           >
-            {added ? '✓ Добавлено' : '+ В корзину'}
+            {inCart ? 'Перейти к оплате' : added ? '✓ Добавлено' : '+ В корзину'}
           </button>
         )}
       </div>
@@ -270,7 +277,7 @@ function ArtworkCard({
           {artwork.author}, {artwork.age} лет
         </p>
         <div className="flex items-center justify-between">
-          <span className="text-[#4A7C59] font-bold text-lg">{fmt(artwork.price)}</span>
+          <span className="text-[#4A7C59] font-bold text-lg">от {fmt(artwork.minPrice || 500)}</span>
           <span className="text-xs text-[#A89070]">30% — фонду</span>
         </div>
       </div>
@@ -283,24 +290,24 @@ function ArtworkCard({
 function ArtworkModal({
   artwork,
   onClose,
-  onAdd,
+  onBuy,
 }: {
   artwork: Artwork
   onClose: () => void
-  onAdd: () => void
+  onBuy: (artwork: Artwork, price: number) => void
 }) {
-  const [qty, setQty] = useState(1)
-  const [added, setAdded] = useState(false)
+  const isSold = artwork.status === 'sold'
+  const [price, setPrice] = useState(artwork.minPrice || 500)
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = '' }
   }, [])
 
-  function handleAdd() {
-    for (let i = 0; i < qty; i++) onAdd()
-    setAdded(true)
-    setTimeout(() => setAdded(false), 2000)
+  function handleBuy() {
+    const finalPrice = Math.max(price, artwork.minPrice || 500)
+    onBuy(artwork, finalPrice)
+    onClose()
   }
 
   return (
@@ -351,34 +358,33 @@ function ArtworkModal({
             </div>
 
             <div className="mt-auto">
-              <div className="flex items-center justify-between mb-4">
-                <span className="text-[#4A7C59] font-bold text-2xl">{fmt(artwork.price * qty)}</span>
-                <div className="flex items-center gap-2 border border-[#E8DCC8] rounded-full px-1">
-                  <button
-                    onClick={() => setQty(q => Math.max(1, q - 1))}
-                    className="w-8 h-8 flex items-center justify-center text-[#6B5B42] hover:text-[#2C2416] transition-colors"
-                  >
-                    −
-                  </button>
-                  <span className="w-6 text-center font-semibold text-[#2C2416]">{qty}</span>
-                  <button
-                    onClick={() => setQty(q => q + 1)}
-                    className="w-8 h-8 flex items-center justify-center text-[#6B5B42] hover:text-[#2C2416] transition-colors"
-                  >
-                    +
-                  </button>
+              {isSold ? (
+                <div className="bg-[#F5F0E8] rounded-xl p-4 text-center">
+                  <p className="text-[#6B5B42] font-semibold">Эта картина уже продана</p>
                 </div>
-              </div>
-              <button
-                onClick={handleAdd}
-                className={`w-full py-3.5 rounded-2xl font-bold text-base transition-all duration-300 ${
-                  added
-                    ? 'bg-[#4A7C59] text-white'
-                    : 'bg-[#2C2416] text-white hover:bg-[#4A7C59]'
-                }`}
-              >
-                {added ? '✓ Добавлено в корзину!' : 'Добавить в корзину'}
-              </button>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <label className="block text-xs text-[#A89070] mb-1">Ваша цена (от {fmt(artwork.minPrice || 500)})</label>
+                    <input
+                      type="number"
+                      min={artwork.minPrice || 500}
+                      step="50"
+                      value={price}
+                      onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
+                      onBlur={() => setPrice(Math.max(price, artwork.minPrice || 500))}
+                      className="w-full border border-[#E8DCC8] rounded-lg px-3 py-2 text-lg font-bold text-[#4A7C59] focus:border-[#4A7C59] outline-none"
+                      placeholder="Ваша цена"
+                    />
+                  </div>
+                  <button
+                    onClick={handleBuy}
+                    className="w-full py-3.5 rounded-2xl font-bold text-base bg-[#2C2416] text-white hover:bg-[#4A7C59] transition-all duration-300"
+                  >
+                    Перейти к оплате
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -395,12 +401,14 @@ function CartSidebar({
   onRemove,
   onChangeQty,
   onCheckout,
+  onPriceChange,
 }: {
   items: CartItem[]
   onClose: () => void
   onRemove: (id: number) => void
   onChangeQty: (id: number, qty: number) => void
   onCheckout: () => void
+  onPriceChange: (id: number, price: number) => void
 }) {
   const total = items.reduce((s, i) => s + i.artwork.price * i.qty, 0)
 
@@ -450,23 +458,18 @@ function CartSidebar({
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-sm text-[#2C2416] truncate">{item.artwork.title}</p>
                     <p className="text-xs text-[#A89070] mb-2">{item.artwork.author}, {item.artwork.age} лет</p>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 border border-[#E8DCC8] rounded-full px-1">
-                        <button
-                          onClick={() => onChangeQty(item.artwork.id, item.qty - 1)}
-                          className="w-6 h-6 flex items-center justify-center text-[#6B5B42] hover:text-[#2C2416]"
-                        >
-                          −
-                        </button>
-                        <span className="text-xs font-bold w-4 text-center">{item.qty}</span>
-                        <button
-                          onClick={() => onChangeQty(item.artwork.id, item.qty + 1)}
-                          className="w-6 h-6 flex items-center justify-center text-[#6B5B42] hover:text-[#2C2416]"
-                        >
-                          +
-                        </button>
-                      </div>
-                      <span className="text-sm font-bold text-[#4A7C59]">{fmt(item.artwork.price * item.qty)}</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={item.artwork.minPrice || 500}
+                        step="50"
+                        value={item.artwork.price}
+                        onChange={(e) => onPriceChange(item.artwork.id, parseFloat(e.target.value) || 0)}
+                        onBlur={() => onPriceChange(item.artwork.id, Math.max(item.artwork.price, item.artwork.minPrice || 500))}
+                        className="w-24 border border-[#E8DCC8] rounded-lg px-2 py-1 text-sm font-bold text-[#4A7C59] focus:border-[#4A7C59] outline-none"
+                        placeholder="Ваша цена"
+                      />
+                      <span className="text-xs text-[#A89070]">₽ (от {fmt(item.artwork.minPrice || 500)})</span>
                     </div>
                   </div>
                   <button
@@ -507,10 +510,12 @@ function CheckoutModal({
   items,
   total,
   onClose,
+  onPriceChange,
 }: {
   items: CartItem[]
   total: number
   onClose: (cleared: boolean) => void
+  onPriceChange: (id: number, price: number) => void
 }) {
   const [step, setStep] = useState<CheckoutStep>('form')
   const [form, setForm] = useState({ name: '', email: '', phone: '', comment: '' })
@@ -518,6 +523,14 @@ function CheckoutModal({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [orderError, setOrderError] = useState('')
+
+  // Если цена меньше minPrice — ставим minPrice
+  useEffect(() => {
+    items.forEach(item => {
+      const min = item.artwork.minPrice || 500
+      if (item.artwork.price < min) onPriceChange(item.artwork.id, min)
+    })
+  }, [])
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -543,7 +556,10 @@ function CheckoutModal({
     setOrderError('')
     
     try {
-      const picture_ids = items.map(item => item.artwork.id)
+      const items_payload = items.map(item => ({
+        picture_id: item.artwork.id,
+        offered_price: item.artwork.price,
+      }))
       
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -552,7 +568,7 @@ function CheckoutModal({
           customer_name: form.name,
           customer_email: form.email,
           customer_phone: form.phone,
-          picture_ids: picture_ids,
+          items: items_payload,
         }),
       })
 
@@ -917,6 +933,14 @@ function ContactSection() {
 export default function App() {
   const [artworks, setArtworks] = useState<Artwork[]>(ARTWORKS)
   const [cart, setCart] = useState<CartItem[]>([])
+
+  function handlePriceChange(id: number, price: number) {
+    setCart(prev => prev.map(item =>
+      item.artwork.id === id
+        ? { ...item, artwork: { ...item.artwork, price } }
+        : item
+    ))
+  }
   const [cartOpen, setCartOpen] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [selectedArtwork, setSelectedArtwork] = useState<Artwork | null>(null)
@@ -935,7 +959,7 @@ export default function App() {
   useEffect(() => {
     const controller = new AbortController()
 
-    fetch('/api/pictures?status=available', { signal: controller.signal })
+    fetch('/api/pictures', { signal: controller.signal })
       .then(response => {
         if (!response.ok) throw new Error(`Pictures API returned ${response.status}`)
         return response.json() as Promise<Artwork[]>
@@ -955,9 +979,26 @@ export default function App() {
   function addToCart(artwork: Artwork) {
     setCart(prev => {
       const existing = prev.find(i => i.artwork.id === artwork.id)
-      if (existing) return prev.map(i => i.artwork.id === artwork.id ? { ...i, qty: i.qty + 1 } : i)
-      return [...prev, { artwork, qty: 1 }]
+      if (existing) return prev
+      return [...prev, { artwork: { ...artwork, price: artwork.minPrice || 500 }, qty: 1 }]
     })
+  }
+
+  function handleBuy(artwork: Artwork, price: number) {
+    const finalPrice = price || artwork.minPrice || 500
+    setCart(prev => {
+      const existing = prev.find(i => i.artwork.id === artwork.id)
+      if (existing) {
+        return prev.map(i => 
+          i.artwork.id === artwork.id 
+            ? { ...i, artwork: { ...i.artwork, price: finalPrice }, qty: 1 }
+            : i
+        )
+      }
+      return [...prev, { artwork: { ...artwork, price: finalPrice }, qty: 1 }]
+    })
+    setCartOpen(false)
+    setCheckoutOpen(true)
   }
 
   function removeFromCart(id: number) {
@@ -1213,6 +1254,8 @@ export default function App() {
                 artwork={artwork}
                 onView={() => setSelectedArtwork(artwork)}
                 onAdd={() => addToCart(artwork)}
+                onBuy={handleBuy}
+                inCart={cart.some(i => i.artwork.id === artwork.id)}
               />
             ))}
           </div>
@@ -1240,6 +1283,8 @@ export default function App() {
                 artwork={artwork}
                 onView={() => setSelectedArtwork(artwork)}
                 onAdd={() => addToCart(artwork)}
+                onBuy={handleBuy}
+                inCart={cart.some(i => i.artwork.id === artwork.id)}
               />
             ))}
           </div>
@@ -1325,7 +1370,7 @@ export default function App() {
         <ArtworkModal
           artwork={selectedArtwork}
           onClose={() => setSelectedArtwork(null)}
-          onAdd={() => addToCart(selectedArtwork)}
+          onBuy={handleBuy}
         />
       )}
 
@@ -1336,6 +1381,7 @@ export default function App() {
           onRemove={removeFromCart}
           onChangeQty={changeQty}
           onCheckout={() => { setCartOpen(false); setCheckoutOpen(true) }}
+          onPriceChange={handlePriceChange}
         />
       )}
 
@@ -1347,6 +1393,7 @@ export default function App() {
             setCheckoutOpen(false)
             if (cleared) setCart([])
           }}
+          onPriceChange={handlePriceChange}
         />
       )}
     </div>

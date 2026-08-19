@@ -44,6 +44,7 @@ class PictureCreate(BaseModel):
 
 
 class PictureUpdate(BaseModel):
+    min_price: float | None = Field(default=None, ge=0)
     image_path: str | None = None
     title: str | None = None
     author: str | None = None
@@ -74,6 +75,7 @@ class PictureOut(BaseModel):
     story: str
     popularity: int
     status: str = "available"
+    minPrice: float = 500.0
 
 
 # ---------- Пожертвования и Заказы ----------
@@ -91,12 +93,18 @@ class OrderCreate(BaseModel):
     items: list[OrderItem] = Field(min_length=1)
 
 
+class OrderPictureItem(BaseModel):
+    """Позиция заказа: картина и цена, предложенная покупателем."""
+    picture_id: int
+    offered_price: float = Field(ge=0)
+
+
 class PictureOrderCreate(BaseModel):
-    """Запрос для создания заказа картин."""
+    """Заказ картин (HIH-2): цену выбирает покупатель, не ниже min_price."""
     customer_name: str = Field(min_length=1, max_length=100)
     customer_email: str = Field(min_length=3, max_length=254)
     customer_phone: str = Field(min_length=1, max_length=20)
-    picture_ids: list[int] = Field(min_length=1)
+    items: list[OrderPictureItem] = Field(min_length=1)
 
 
 class OrderOut(BaseModel):
