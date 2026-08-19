@@ -951,7 +951,7 @@ export default function App() {
   useEffect(() => {
     const controller = new AbortController()
 
-    fetch('/api/pictures?status=available', { signal: controller.signal })
+    fetch('/api/pictures', { signal: controller.signal })
       .then(response => {
         if (!response.ok) throw new Error(`Pictures API returned ${response.status}`)
         return response.json() as Promise<Artwork[]>
