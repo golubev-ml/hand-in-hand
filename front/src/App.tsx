@@ -287,6 +287,43 @@ function ArtworkCard({
 
 // ─── ArtworkModal ─────────────────────────────────────────────────────────────
 
+function PriceInput({
+  value,
+  min,
+  onCommit,
+  inputClass = '',
+}: {
+  value: number
+  min: number
+  onCommit: (v: number) => void
+  inputClass?: string
+}) {
+  const [text, setText] = useState(String(value))
+  useEffect(() => { setText(String(value)) }, [value])
+  function commit() {
+    const parsed = parseFloat(text.replace(',', '.'))
+    const v = Math.max(Number.isFinite(parsed) ? parsed : min, min)
+    setText(String(v))
+    onCommit(v)
+  }
+  return (
+    <div>
+      <input
+        type="number"
+        min={min}
+        step="50"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+        className={inputClass}
+        placeholder="Ваша цена"
+      />
+      <p className="text-[11px] text-[#A89070] mt-1">минимум {fmt(min)} — Enter или клик вне поля</p>
+    </div>
+  )
+}
+
 function ArtworkModal({
   artwork,
   onClose,
@@ -365,16 +402,11 @@ function ArtworkModal({
               ) : (
                 <>
                   <div className="mb-4">
-                    <label className="block text-xs text-[#A89070] mb-1">Ваша цена (от {fmt(artwork.minPrice || 500)})</label>
-                    <input
-                      type="number"
-                      min={artwork.minPrice || 500}
-                      step="50"
+                    <PriceInput
                       value={price}
-                      onChange={(e) => setPrice(parseFloat(e.target.value) || 0)}
-                      onBlur={() => setPrice(Math.max(price, artwork.minPrice || 500))}
-                      className="w-full border border-[#E8DCC8] rounded-lg px-3 py-2 text-lg font-bold text-[#4A7C59] focus:border-[#4A7C59] outline-none"
-                      placeholder="Ваша цена"
+                      min={artwork.minPrice || 500}
+                      onCommit={(v) => setPrice(v)}
+                      inputClass="w-full border border-[#E8DCC8] rounded-lg px-3 py-2 text-lg font-bold text-[#4A7C59] focus:border-[#4A7C59] outline-none"
                     />
                   </div>
                   <button
@@ -459,17 +491,12 @@ function CartSidebar({
                     <p className="font-semibold text-sm text-[#2C2416] truncate">{item.artwork.title}</p>
                     <p className="text-xs text-[#A89070] mb-2">{item.artwork.author}, {item.artwork.age} лет</p>
                     <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min={item.artwork.minPrice || 500}
-                        step="50"
+                      <PriceInput
                         value={item.artwork.price}
-                        onChange={(e) => onPriceChange(item.artwork.id, parseFloat(e.target.value) || 0)}
-                        onBlur={() => onPriceChange(item.artwork.id, Math.max(item.artwork.price, item.artwork.minPrice || 500))}
-                        className="w-24 border border-[#E8DCC8] rounded-lg px-2 py-1 text-sm font-bold text-[#4A7C59] focus:border-[#4A7C59] outline-none"
-                        placeholder="Ваша цена"
+                        min={item.artwork.minPrice || 500}
+                        onCommit={(v) => onPriceChange(item.artwork.id, v)}
+                        inputClass="w-24 border border-[#E8DCC8] rounded-lg px-2 py-1 text-sm font-bold text-[#4A7C59] focus:border-[#4A7C59] outline-none"
                       />
-                      <span className="text-xs text-[#A89070]">₽ (от {fmt(item.artwork.minPrice || 500)})</span>
                     </div>
                   </div>
                   <button
@@ -567,7 +594,6 @@ function CheckoutModal({
         body: JSON.stringify({
           customer_name: form.name,
           customer_email: form.email,
-          customer_phone: form.phone,
           items: items_payload,
         }),
       })
@@ -652,7 +678,6 @@ function CheckoutModal({
                 {[
                   { key: 'name', label: 'Имя', placeholder: 'Иван Петров', type: 'text' },
                   { key: 'email', label: 'Email', placeholder: 'ivan@mail.ru', type: 'email' },
-                  { key: 'phone', label: 'Телефон', placeholder: '+7 999 123-45-67', type: 'tel' },
                 ].map(f => (
                   <div key={f.key}>
                     <label className="block text-sm font-semibold text-[#6B5B42] mb-1">{f.label}</label>
