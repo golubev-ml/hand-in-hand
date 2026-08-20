@@ -83,9 +83,9 @@ def build_order_html(name: str, items: list[dict], total: float) -> str:
     <div style="border-top:1px solid #E8DCC8;padding-top:16px;font-size:14px;
                 color:#6B5B42;line-height:1.9;">
       Остались вопросы? Мы всегда на связи:<br />
-      Email: hello@kraskiland.ru<br />
-      Телефон: +7 (495) 123-45-67<br />
-      Адрес: Москва, ул. Творческая, 12, офис 3
+      Email: ahmadeeva.alina97@gmail.com<br />
+      Телефон: +7 (919) 633-72-25<br />
+      Адрес: 420043, Республика Татарстан, г Казань, Бойничная ул, д. 5, помещ. 6
     </div>
   </div>
 </div>
