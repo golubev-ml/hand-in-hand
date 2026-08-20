@@ -5,8 +5,10 @@
 SMTP_HOST, SMTP_PORT, MAIL_FROM, BASE_URL.
 """
 import os
+import re
 import smtplib
 from pathlib import Path
+from email.mime.application import MIMEApplication
 from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -16,6 +18,7 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "1025"))
 MAIL_FROM = os.getenv("MAIL_FROM", "noreply@kraski-detstva.ru")
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
+STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 def _abs(url: str) -> str:
@@ -55,7 +58,7 @@ def build_order_html(name: str, items: list[dict], total: float) -> str:
   <div style="max-width:600px;margin:0 auto;background:#FFFCF7;border:1px solid #E8DCC8;
               border-radius:16px;padding:32px;">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
-      <img src="{BASE_URL}/logo.png" alt="" width="44" height="44" style="border-radius:50%;" />
+      <img src="cid:logo" alt="" width="44" height="44" style="border-radius:50%;" />
       <div style="font-size:20px;font-weight:bold;color:#4A7C59;">Искусство чтобы жить</div>
     </div>
 
@@ -80,6 +83,12 @@ def build_order_html(name: str, items: list[dict], total: float) -> str:
       пожертвование юным художникам!
     </div>
 
+    <div style="background:#FFF7E0;border-radius:12px;padding:14px;font-size:14px;
+                color:#8A6D3B;margin-bottom:20px;">
+      🖨 Оригиналы рисунков прикреплены к письму в нескольких форматах —
+      их можно распечатать в хорошем качестве.
+    </div>
+
     <div style="border-top:1px solid #E8DCC8;padding-top:16px;font-size:14px;
                 color:#6B5B42;line-height:1.9;">
       Остались вопросы? Мы всегда на связи:<br />
@@ -92,16 +101,37 @@ def build_order_html(name: str, items: list[dict], total: float) -> str:
 """
 
 
+def _mime_subtype(path: Path) -> str:
+    st = path.suffix.lower().lstrip(".")
+    return {"jpg": "jpeg", "jpeg": "jpeg", "png": "png", "webp": "webp", "gif": "gif"}.get(st, "octet-stream")
+
+
+def _safe_title(t: str) -> str:
+    t = re.sub(r"[^\wа-яёА-ЯЁ\- ]+", "", t or "").strip().replace(" ", "_")[:40]
+    return t or "picture"
+
+
 def send_email(to: str, subject: str, html: str, items: list[dict] | None = None) -> None:
-    """Отправляет HTML-письмо через SMTP (MailHog или реальный сервер)."""
-    msg = MIMEMultipart("related")
+    """HIH-6: письмо с inline-картинками (cid) + вложениями для печати."""
+    msg = MIMEMultipart("mixed")
     msg["Subject"] = subject
     msg["From"] = MAIL_FROM
     msg["To"] = to
+
+    related = MIMEMultipart("related")
     alternative = MIMEMultipart("alternative")
     alternative.attach(MIMEText(html, "html", "utf-8"))
-    msg.attach(alternative)
+    related.attach(alternative)
 
+    # лого — inline через cid, не зависит от домена
+    logo = STATIC_DIR / "logo.png"
+    if logo.is_file():
+        li = MIMEImage(logo.read_bytes(), _subtype="png")
+        li.add_header("Content-ID", "<logo>")
+        li.add_header("Content-Disposition", "inline", filename="logo.png")
+        related.attach(li)
+
+    # картинки заказа — inline для показа
     for index, item in enumerate(items or []):
         image_path = item.get("img", "")
         if not image_path.startswith("/uploads/"):
@@ -109,12 +139,29 @@ def send_email(to: str, subject: str, html: str, items: list[dict] | None = None
         path = UPLOAD_DIR / Path(image_path).name
         if not path.is_file():
             raise FileNotFoundError(f"Order image not found: {image_path}")
-        subtype = path.suffix.lower().lstrip(".")
-        if subtype == "jpg":
-            subtype = "jpeg"
-        image = MIMEImage(path.read_bytes(), _subtype=subtype)
+        image = MIMEImage(path.read_bytes(), _subtype=_mime_subtype(path))
         image.add_header("Content-ID", f"<order-image-{index}>")
         image.add_header("Content-Disposition", "inline", filename=path.name)
-        msg.attach(image)
+        related.attach(image)
+    msg.attach(related)
+
+    # HIH-6: вложения для печати — оригинал + gallery-версия
+    for index, item in enumerate(items or []):
+        image_path = item.get("img", "")
+        if not image_path.startswith("/uploads/"):
+            continue
+        path = UPLOAD_DIR / Path(image_path).name
+        if not path.is_file():
+            continue
+        base = f"{index + 1:02d}_{_safe_title(item.get('title', ''))}"
+        att = MIMEApplication(path.read_bytes(), _subtype=_mime_subtype(path))
+        att.add_header("Content-Disposition", "attachment", filename=f"{base}_print{path.suffix.lower()}")
+        msg.attach(att)
+        gal = UPLOAD_DIR / (path.stem + "_gallery.webp")
+        if gal.is_file():
+            att2 = MIMEApplication(gal.read_bytes(), _subtype="webp")
+            att2.add_header("Content-Disposition", "attachment", filename=f"{base}_gallery.webp")
+            msg.attach(att2)
+
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
         server.send_message(msg)
