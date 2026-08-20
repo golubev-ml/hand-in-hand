@@ -113,15 +113,14 @@ def _safe_title(t: str) -> str:
 
 def send_email(to: str, subject: str, html: str, items: list[dict] | None = None) -> None:
     """HIH-6: письмо с inline-картинками (cid) + вложениями для печати."""
-    msg = MIMEMultipart("mixed")
+    msg = MIMEMultipart("related")
     msg["Subject"] = subject
     msg["From"] = MAIL_FROM
     msg["To"] = to
 
-    related = MIMEMultipart("related")
-    alternative = MIMEMultipart("alternative")
+        alternative = MIMEMultipart("alternative")
     alternative.attach(MIMEText(html, "html", "utf-8"))
-    related.attach(alternative)
+    msg.attach(alternative)
 
     # лого — inline через cid, не зависит от домена
     logo = STATIC_DIR / "logo.png"
@@ -129,7 +128,7 @@ def send_email(to: str, subject: str, html: str, items: list[dict] | None = None
         li = MIMEImage(logo.read_bytes(), _subtype="png")
         li.add_header("Content-ID", "<logo>")
         li.add_header("Content-Disposition", "inline", filename="logo.png")
-        related.attach(li)
+        msg.attach(li)
 
     # картинки заказа — inline для показа
     for index, item in enumerate(items or []):
@@ -142,8 +141,8 @@ def send_email(to: str, subject: str, html: str, items: list[dict] | None = None
         image = MIMEImage(path.read_bytes(), _subtype=_mime_subtype(path))
         image.add_header("Content-ID", f"<order-image-{index}>")
         image.add_header("Content-Disposition", "inline", filename=path.name)
-        related.attach(image)
-    msg.attach(related)
+        msg.attach(image)
+    
 
     # HIH-6: вложения для печати — оригинал + gallery-версия
     for index, item in enumerate(items or []):
