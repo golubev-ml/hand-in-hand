@@ -31,6 +31,7 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_USE_SSL: ${SMTP_USE_SSL:-false}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
       MAIL_FROM: ${MAIL_FROM:-noreply@kraski-detstva.ru}
       BASE_URL: ${BASE_URL:-https://hand-in-hand-kzn.ru}
     volumes:

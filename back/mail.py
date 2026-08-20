@@ -18,6 +18,7 @@ SMTP_PORT = int(os.getenv("SMTP_PORT", "1025"))
 SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 SMTP_USE_SSL = os.getenv("SMTP_USE_SSL", "false").lower() in ("1", "true", "yes")
+EMAIL_ENABLED = os.getenv("EMAIL_ENABLED", "true").lower() in ("1", "true", "yes")
 MAIL_FROM = os.getenv("MAIL_FROM", "noreply@kraski-detstva.ru")
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"

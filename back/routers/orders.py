@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from database import get_db
-from mail import build_order_html, send_email
+from mail import EMAIL_ENABLED, build_order_html, send_email
 from models import Order, Picture, Log
 from schemas import PictureOrderCreate, OrderOut
 from archive import archive_expired
@@ -50,7 +50,7 @@ def create_order(data: PictureOrderCreate, response: Response, db: Session = Dep
     ]
 
     email_status = "not_sent"
-    if payment_status == "paid":
+    if payment_status == "paid" and EMAIL_ENABLED:
         try:
             mail_items = [
                 {
