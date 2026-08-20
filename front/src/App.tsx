@@ -882,12 +882,28 @@ function DonationSection() {
 function ContactSection() {
   const [form, setForm] = useState({ name: '', email: '', message: '' })
   const [sent, setSent] = useState(false)
+  const [error, setError] = useState('')
+  const [sending, setSending] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setSent(true)
-    setForm({ name: '', email: '', message: '' })
-    setTimeout(() => setSent(false), 4000)
+    setError('')
+    setSending(true)
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+      if (!res.ok) throw new Error('send failed')
+      setSent(true)
+      setForm({ name: '', email: '', message: '' })
+      setTimeout(() => setSent(false), 4000)
+    } catch {
+      setError('Не удалось отправить сообщение. Попробуйте ещё раз.')
+    } finally {
+      setSending(false)
+    }
   }
 
   return (
@@ -904,9 +920,9 @@ function ContactSection() {
             </p>
             <div className="space-y-4">
               {[
-                { icon: '📬', label: 'Email', value: 'hello@kraskiland.ru' },
-                { icon: '📞', label: 'Телефон', value: '+7 (495) 123-45-67' },
-                { icon: '📍', label: 'Адрес', value: 'Москва, ул. Творческая, 12, офис 3' },
+                { icon: '📬', label: 'Email', value: 'ahmadeeva.alina97@gmail.com' },
+                { icon: '📞', label: 'Телефон', value: '+7 (919) 633-72-25' },
+                { icon: '📍', label: 'Адрес', value: '420043, Казань, ул. Бойничная, 5, помещ. 6' },
                 { icon: '🕐', label: 'Режим работы', value: 'Пн–Пт, 10:00–18:00' },
               ].map(c => (
                 <div key={c.label} className="flex gap-3 items-start">
@@ -950,11 +966,17 @@ function ContactSection() {
                 ✓ Сообщение отправлено! Мы ответим вам скоро.
               </div>
             )}
+            {error && (
+              <div className="bg-[#FEE2E2] text-[#B91C1C] text-sm px-4 py-3 rounded-xl font-semibold">
+                {error}
+              </div>
+            )}
             <button
               type="submit"
-              className="w-full bg-[#4A7C59] text-white py-3.5 rounded-2xl font-bold hover:bg-[#3D6649] transition-colors"
+              disabled={sending}
+              className="w-full bg-[#4A7C59] text-white py-3.5 rounded-2xl font-bold hover:bg-[#3D6649] transition-colors disabled:opacity-60"
             >
-              Отправить сообщение
+              {sending ? 'Отправляем…' : 'Отправить сообщение'}
             </button>
           </form>
         </div>

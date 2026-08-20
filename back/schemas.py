@@ -160,3 +160,20 @@ class LogOut(BaseModel):
     request: str
     response: str
     model_config = ConfigDict(from_attributes=True)
+
+
+# ---------- HIH-8: обращения ----------
+class ContactMessageCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    email: str = Field(min_length=3, max_length=254)
+    message: str = Field(min_length=1, max_length=5000)
+
+
+class ContactMessageOut(BaseModel):
+    id: int
+    created_at: datetime
+    name: str
+    email: str
+    message: str
+    status: str
+    model_config = ConfigDict(from_attributes=True)

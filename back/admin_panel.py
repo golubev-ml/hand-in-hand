@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from auth import ALGORITHM, SECRET_KEY, create_token, verify_password
 from database import get_db
-from models import Donation, Log, Manager, Order, Picture
+from models import ContactMessage, Donation, Log, Manager, Order, Picture
 
 UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
@@ -83,6 +83,7 @@ img.thumb{width:60px;height:60px;object-fit:cover}
 <a href="/admin/pictures/upload">+ Картинка</a>
 <a href="/admin/orders">Заказы</a>
 <a href="/admin/donations">Пожертвования</a>
+<a href="/admin/contacts">Обращения</a>
 <a href="/admin/logs">Лог</a>
 <span style="margin-left:auto">@LOGIN@ · <a href="/admin/logout">выйти</a></span>
 </header><main>@BODY@</main></body></html>"""
@@ -543,3 +544,34 @@ def logs(login: str = Depends(current_admin), db: Session = Depends(get_db)):
     body = f"""<h2>Лог запросов</h2><div class="card"><table>
     <tr><th>Время</th><th>Запрос</th><th>URL</th></tr>{tr}</table></div>"""
     return page("Лог", body, login)
+
+
+# ---------- обращения (HIH-8) ----------
+@router.get("/contacts", response_class=HTMLResponse)
+def contacts(login: str = Depends(current_admin), db: Session = Depends(get_db)):
+    rows = db.query(ContactMessage).order_by(ContactMessage.created_at.desc()).all()
+    tr = ""
+    for c in rows:
+        tr += f"""<tr>
+        <td>{c.created_at:%m-%d %H:%M}</td>
+        <td>{html.escape(c.name)}</td>
+        <td>{html.escape(c.email)}</td>
+        <td style="max-width:420px;white-space:pre-wrap">{html.escape(c.message)}</td>
+        <td><form method="post" action="/admin/contacts/{c.id}/status" style="margin:0">
+            <select name="status" onchange="this.form.submit()">
+                <option {'selected' if c.status == 'new' else ''}>new</option>
+                <option {'selected' if c.status == 'processed' else ''}>processed</option>
+            </select></form></td></tr>"""
+    body = f"""<h2>Обращения</h2><div class="card"><table>
+    <tr><th>Дата</th><th>Имя</th><th>Email</th><th>Сообщение</th><th>Статус</th></tr>{tr}</table></div>"""
+    return page("Обращения", body, login)
+
+
+@router.post("/contacts/{contact_id}/status")
+async def contact_status(contact_id: int, request: Request, login: str = Depends(current_admin), db: Session = Depends(get_db)):
+    form = await request.form()
+    msg = db.get(ContactMessage, contact_id)
+    if msg:
+        msg.status = form.get("status", msg.status)
+        db.commit()
+    return RedirectResponse("/admin/contacts", status_code=302)
