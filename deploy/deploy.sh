@@ -3,8 +3,18 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR/deploy"
 
-echo "[1/4] Starting database and mailhog..."
-docker compose up -d db mailhog
+if [ -f .env ]; then
+  set -a
+  . ./.env
+  set +a
+fi
+
+echo "[1/4] Starting database..."
+docker compose up -d db
+if [ "${APP_ENV:-local}" != "prod" ]; then
+  echo "Starting MailHog for ${APP_ENV:-local} environment..."
+  docker compose up -d mailhog
+fi
 for i in {1..30}; do
   docker compose ps db | grep -q 'healthy' && break
   [ "$i" -eq 30 ] && { echo "DB not healthy" >&2; exit 1; }
@@ -40,4 +50,6 @@ echo "Deployment completed."
 echo "Site:  https://hand-in-hand-kzn.ru"
 echo "Admin: https://hand-in-hand-kzn.ru/admin"
 echo "Docs:  https://hand-in-hand-kzn.ru/docs"
-echo "MailHog: http://localhost:9000"
+if [ "${APP_ENV:-local}" != "prod" ]; then
+  echo "MailHog: http://localhost:9000"
+fi

@@ -2,7 +2,7 @@
 
 Пока почта на сервере не настроена, письма уходят в MailHog (тестовый сервер,
 никуда реально не отправляет). Параметры — через переменные окружения:
-SMTP_HOST, SMTP_PORT, MAIL_FROM, BASE_URL.
+SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_USE_SSL, MAIL_FROM, BASE_URL.
 """
 import os
 import re
@@ -15,6 +15,9 @@ from email.mime.text import MIMEText
 
 SMTP_HOST = os.getenv("SMTP_HOST", "localhost")
 SMTP_PORT = int(os.getenv("SMTP_PORT", "1025"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_USE_SSL = os.getenv("SMTP_USE_SSL", "false").lower() in ("1", "true", "yes")
 MAIL_FROM = os.getenv("MAIL_FROM", "noreply@kraski-detstva.ru")
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
@@ -160,5 +163,8 @@ def send_email(to: str, subject: str, html: str, items: list[dict] | None = None
             att2.add_header("Content-Disposition", "attachment", filename=f"{base}_gallery.webp")
             msg.attach(att2)
 
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+    smtp_class = smtplib.SMTP_SSL if SMTP_USE_SSL else smtplib.SMTP
+    with smtp_class(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+        if SMTP_USER:
+            server.login(SMTP_USER, SMTP_PASSWORD)
         server.send_message(msg)
