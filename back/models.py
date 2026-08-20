@@ -83,3 +83,15 @@ class Log(Base):
     url = Column(String(500), default="")
     request = Column(Text, default="")
     response = Column(Text, default="")
+
+
+class ContactMessage(Base):
+    """HIH-8: обращение из формы обратной связи."""
+    __tablename__ = "contact_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(DateTime, default=datetime.now)
+    name = Column(String(100), nullable=False)
+    email = Column(String(254), nullable=False)
+    message = Column(Text, nullable=False)
+    status = Column(String(20), default="new")  # new | processed
