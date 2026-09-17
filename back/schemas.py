@@ -105,14 +105,17 @@ class PictureOrderCreate(BaseModel):
     customer_email: str = Field(min_length=3, max_length=254)
     customer_phone: str = Field(default="", max_length=20)  # HIH-4: телефон убран из формы
     items: list[OrderPictureItem] = Field(min_length=1)
+    payment_method: str = Field(default="card")             # HIH-9: card | sbp | sberpay | mirpay
 
 
 class OrderOut(BaseModel):
-    """Ответ при создании заказа."""
+    """Ответ при создании заказа. payment_url непустой, когда нужна переадресация в шлюз."""
     order_id: int
-    payment_status: str  # paid | failed
-    email_status: str    # sent | failed | not_sent
+    payment_status: str      # paid | failed | pending
+    email_status: str        # sent | failed | not_sent
     total: float
+    payment_url: str = ""    # HIH-9: formUrl платёжной страницы Сбера
+    order_number: str = ""   # HIH-9: orderNumber, переданный в шлюз
 
 
 class OrderDetailOut(BaseModel):

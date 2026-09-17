@@ -16,6 +16,8 @@ from sqlalchemy.orm import Session
 
 from auth import ALGORITHM, SECRET_KEY, create_token, verify_password
 from database import get_db
+from payments import sber as sber_module
+import settings_store
 from models import ContactMessage, Donation, Log, Manager, Order, Picture
 
 UPLOAD_DIR = Path(__file__).resolve().parent / "uploads"
@@ -85,6 +87,7 @@ img.thumb{width:60px;height:60px;object-fit:cover}
 <a href="/admin/donations">Пожертвования</a>
 <a href="/admin/contacts">Обращения</a>
 <a href="/admin/logs">Лог</a>
+<a href="/admin/settings">Настройки</a>
 <span style="margin-left:auto">@LOGIN@ · <a href="/admin/logout">выйти</a></span>
 </header><main>@BODY@</main></body></html>"""
 
@@ -497,11 +500,12 @@ def orders(login: str = Depends(current_admin), db: Session = Depends(get_db)):
         <td>{html.escape(o.customer_email)}</td>
         <td>{html.escape(o.customer_phone) if o.customer_phone else '—'}</td>
         <td>{o.total} ₽</td>
-        <td><span style="background:#{'#dcfce7' if o.payment_status == 'paid' else '#fee2e2'};padding:2px 6px;border-radius:3px">{o.payment_status}</span></td>
+        <td><span style="background:{'#dcfce7' if o.payment_status == 'paid' else '#fef3c7' if o.payment_status == 'pending' else '#fee2e2'};padding:2px 6px;border-radius:3px">{o.payment_status}</span></td>
         <td><span style="background:#{'#dcfce7' if o.email_status == 'sent' else '#fef3c7'};padding:2px 6px;border-radius:3px">{o.email_status}</span></td>
+        <td style="color:#6b7280;font-size:12px">{html.escape(o.sber_order_id or '—')}</td>
         </tr>"""
     body = f"""<h2>Заказы</h2><div class="card"><table>
-    <tr><th>Дата</th><th>Имя</th><th>Email</th><th>Телефон</th><th>Сумма</th><th>Оплата</th><th>Email</th></tr>{tr}</table></div>"""
+    <tr><th>Дата</th><th>Имя</th><th>Email</th><th>Телефон</th><th>Сумма</th><th>Оплата</th><th>Email</th><th>Номер в шлюзе</th></tr>{tr}</table></div>"""
     return page("Заказы", body, login)
 
 
@@ -575,3 +579,87 @@ async def contact_status(contact_id: int, request: Request, login: str = Depends
         msg.status = form.get("status", msg.status)
         db.commit()
     return RedirectResponse("/admin/contacts", status_code=302)
+
+
+# ---------- настройки (HIH-9) ----------
+TEXT_SETTINGS = (
+    ("sber_user_name", "userName (логин шлюза)", "Используется в register.do/getOrderStatus.do"),
+    ("sber_merchant_login", "merchantLogin", "Не обязательен — шлётся в шлюз, если заполнен"),
+    ("sber_terminal", "Терминал", "Хранится, в шлюз пока не отправляется (уточнить у Сбера)"),
+    ("sber_key_id", "Key ID", "ID ключа подписи, если Сбер потребует проверку подписи"),
+)
+
+
+def _env_hint(key: str) -> str:
+    env_name = settings_store.ENV_FALLBACK.get(key)
+    if env_name and os.getenv(env_name):
+        return f"сейчас из env {env_name}"
+    return ""
+
+
+@router.get("/settings", response_class=HTMLResponse)
+def settings_page(login: str = Depends(current_admin), db: Session = Depends(get_db)):
+    pay_on = settings_store.get_bool(db, "payments_enabled")
+    mail_on = settings_store.get_bool(db, "email_after_purchase")
+    configured = settings_store.is_configured(db)
+
+    flag_pay = ("<span style='color:#16a34a'>ВКЛЮЧЕНА</span>" if pay_on
+                else "<span style='color:#b91c1c'>выключена</span>")
+    flag_mail = ("включено" if mail_on else "выключено")
+    warn = ("" if configured or not pay_on else
+            "<p style='color:#b91c1c'>Оплата включена, но userName/ключ не заданы — "
+            "оформление заказа будет отвечать 503.</p>")
+
+    rows = ""
+    for key, label, hint in TEXT_SETTINGS:
+        value = html.escape(settings_store.get_value(db, key))
+        extra = _env_hint(key)
+        rows += f"""<tr><td>{label}</td>
+        <td><input name="{key}" value="{value}" style="width:100%"></td>
+        <td style="color:#6b7280;font-size:12px">{html.escape(hint)}{' · ' + html.escape(extra) if extra else ''}</td></tr>"""
+
+    secret = settings_store.get_value(db, "sber_key")
+    secret_hint = (f"сохранено {settings_store.mask(secret)}" if secret else "не задан") + \
+                  (" · " + _env_hint("sber_key") if _env_hint("sber_key") else "")
+    rows += f"""<tr><td>Ключ мерчанта (secret)</td>
+    <td><input name="sber_key" type="password" value="" placeholder="{html.escape(settings_store.mask(secret) or 'не задан')}" style="width:100%"></td>
+    <td style="color:#6b7280;font-size:12px">{html.escape(secret_hint)}. Пустое поле = оставить без изменений</td></tr>"""
+
+    body = f"""<h2>Настройки</h2>
+    <div class="card">
+    <p>Оплата через Сбербанк (ecomtest-контур): {flag_pay}. Письмо после покупки: {flag_mail}.</p>
+    {warn}
+    <form method="post" action="/admin/settings">
+    <p><label><input type="checkbox" name="payments_enabled" {'checked' if pay_on else ''}> Оплата включена
+    <span style="color:#6b7280;font-size:12px">(по умолчанию выкл: пока нет рисунков, чекаут работает по старой схеме)</span></label></p>
+    <p><label><input type="checkbox" name="email_after_purchase" {'checked' if mail_on else ''}> Отправлять письмо после покупки</label></p>
+    <table><tr><th style="width:220px">Параметр</th><th>Значение</th><th style="width:320px">Комментарий</th></tr>{rows}</table>
+    <p><button type="submit">Сохранить</button></p>
+    </form>
+    </div>
+    <div class="card" style="color:#6b7280;font-size:13px">
+    Значения хранятся в таблице <code>settings</code>; при пустом значении используется переменная
+    окружения (SBER_USER_NAME, SBER_KEY, SBER_TERMINAL, SBER_KEY_ID, EMAIL_AFTER_PURCHASE,
+    SBER_PAYMENTS_ENABLED). Base URL шлюза — env <code>SBER_BASE_URL</code>
+    (по умолчанию {html.escape(sber_module.base_url())}). Секреты в логах маскируются.
+    </div>"""
+    return page("Настройки", body, login)
+
+
+@router.post("/settings")
+async def settings_save(request: Request, login: str = Depends(current_admin), db: Session = Depends(get_db)):
+    """Сохранение настроек. Пустое поле ключа — не трогать сохранённый секрет."""
+    form = await request.form()
+    settings_store.set_bool(db, "payments_enabled", form.get("payments_enabled") == "on", login)
+    settings_store.set_bool(db, "email_after_purchase", form.get("email_after_purchase") == "on", login)
+    for key, _label, _hint in TEXT_SETTINGS:
+        settings_store.set_value(db, key, (form.get(key) or "").strip(), login)
+    new_key = (form.get("sber_key") or "").strip()
+    if new_key:
+        settings_store.set_value(db, "sber_key", new_key, login)
+    db.add(Log(text="ADMIN settings обновлены", url="/admin/settings",
+               request=f"payments={settings_store.get_value(db, 'payments_enabled')}, "
+                       f"email={settings_store.get_value(db, 'email_after_purchase')}",
+               response="ok"))
+    db.commit()
+    return RedirectResponse("/admin/settings", status_code=302)
