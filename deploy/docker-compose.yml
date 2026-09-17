@@ -33,18 +33,30 @@ services:
       SMTP_USE_SSL: ${SMTP_USE_SSL:-false}
       EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
       MAIL_FROM: ${MAIL_FROM:-noreply@kraski-detstva.ru}
-      BASE_URL: ${BASE_URL:-https://hand-in-hand-kzn.ru}
+      # Основной домен: на него строятся returnUrl/failUrl для шлюза Сбера
+      BASE_URL: ${BASE_URL:-https://hand-in-hand.ru}
+      # HIH-9: контур шлюза. Бой — https://securepay.sberbank.ru/ecomm/gateway/api/rest/
+      SBER_BASE_URL: ${SBER_BASE_URL:-https://ecomtest.sberbank.ru/ecomm/gateway/api/rest/}
+      # Учётные данные шлюза живут в БД (админка /admin/settings); env — только фолбэк
+      SBER_USER_NAME: ${SBER_USER_NAME:-}
+      SBER_KEY: ${SBER_KEY:-}
+      SBER_TERMINAL: ${SBER_TERMINAL:-}
+      SBER_KEY_ID: ${SBER_KEY_ID:-}
+      SBER_PAYMENTS_ENABLED: ${SBER_PAYMENTS_ENABLED:-}
     volumes:
       - uploads_data:/app/uploads
+      - backups_data:/app/backup
     depends_on:
       db:
         condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=deploy_web"
-      - "traefik.http.routers.api.rule=Host(`${DOMAIN:-hand-in-hand-kzn.ru}`) && (PathPrefix(`/api`) || PathPrefix(`/admin`) || PathPrefix(`/uploads`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`))"
+      # Основной + переходный старый домен; /payment — маршруты возврата из шлюза
+      - "traefik.http.routers.api.rule=(Host(`${DOMAIN:-hand-in-hand.ru}`) || Host(`${LEGACY_DOMAIN:-hand-in-hand-kzn.ru}`)) && (PathPrefix(`/api`) || PathPrefix(`/payment`) || PathPrefix(`/admin`) || PathPrefix(`/uploads`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`))"
       - "traefik.http.routers.api.entrypoints=websecure"
       - "traefik.http.routers.api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.api.priority=100"
       - "traefik.http.services.api.loadbalancer.server.port=8000"
     networks: [internal, web]
 
@@ -57,10 +69,30 @@ services:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-hand-in-hand-kzn.ru}`)"
+      - "traefik.docker.network=deploy_web"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-hand-in-hand.ru}`) || Host(`${LEGACY_DOMAIN:-hand-in-hand-kzn.ru}`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.frontend.priority=50"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
+    networks: [web]
+
+  # HIH-9: лендинг-одностраничник на поддомене. Чистая статика, без сборщика:
+  # файлы лежат на сервере в /root/landing (переопределяется LANDING_DIR).
+  landing:
+    image: nginx:1.27-alpine
+    container_name: hand-in-hand-landing
+    volumes:
+      - ${LANDING_DIR:-/root/landing}:/usr/share/nginx/html:ro
+      - ./nginx-landing.conf:/etc/nginx/conf.d/default.conf:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=deploy_web"
+      - "traefik.http.routers.landing.rule=Host(`${LANDING_DOMAIN:-hand.hand-in-hand.ru}`)"
+      - "traefik.http.routers.landing.entrypoints=websecure"
+      - "traefik.http.routers.landing.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.landing.priority=50"
+      - "traefik.http.services.landing.loadbalancer.server.port=80"
     networks: [web]
 
   mailhog:
@@ -71,14 +103,16 @@ services:
       - "9000:8025"
     networks: [internal]
 
+  # ВАЖНО: только traefik v2.11. На сервере старый Docker API (1.24) — v3 не стартует.
   traefik:
-    image: traefik:v3.7.1
+    image: traefik:v2.11
     container_name: hand-in-hand-traefik
     environment:
-      DOCKER_API_VERSION: "1.44"
+      DOCKER_API_VERSION: "1.24"
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=deploy_web"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
@@ -100,7 +134,7 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.test
     environment:
-      BASE_URL: ${BASE_URL:-https://hand-in-hand-kzn.ru}
+      BASE_URL: ${BASE_URL:-https://hand-in-hand.ru}
       API_URL: http://api:8000
       MAILHOG_URL: http://mailhog:8025
       ADMIN_LOGIN: ${ADMIN_LOGIN:-}
@@ -112,6 +146,7 @@ services:
 volumes:
   postgres_data:
   uploads_data:
+  backups_data:
   letsencrypt:
 
 networks:
