@@ -221,48 +221,61 @@ class TestOrderCreateSchema:
 
 
 class TestPictureOrderCreateSchema:
-    """~8 тестов."""
+    """~8 тестов. Схема с HIH-1/2: позиции заказа — items[{picture_id, offered_price}],
+    телефон с HIH-4 необязателен."""
 
     def test_valid(self):
         p = schemas.PictureOrderCreate(
             customer_name="Ivan", customer_email="i@t.com",
-            customer_phone="123", picture_ids=[1],
+            customer_phone="123",
+            items=[schemas.OrderPictureItem(picture_id=1, offered_price=1000)],
         )
         assert p.customer_phone == "123"
+        assert p.items[0].picture_id == 1
+        assert p.payment_method == "card"          # HIH-9: способ оплаты по умолчанию
 
     def test_empty_name(self):
         with pytest.raises(ValueError):
             schemas.PictureOrderCreate(
                 customer_name="", customer_email="i@t.com",
-                customer_phone="123", picture_ids=[1],
+                items=[schemas.OrderPictureItem(picture_id=1, offered_price=1)],
             )
 
     def test_empty_email(self):
         with pytest.raises(ValueError):
             schemas.PictureOrderCreate(
                 customer_name="Ivan", customer_email="",
-                customer_phone="123", picture_ids=[1],
+                items=[schemas.OrderPictureItem(picture_id=1, offered_price=1)],
             )
 
-    def test_empty_phone(self):
-        with pytest.raises(ValueError):
-            schemas.PictureOrderCreate(
-                customer_name="Ivan", customer_email="i@t.com",
-                customer_phone="", picture_ids=[1],
-            )
+    def test_phone_optional(self):
+        """HIH-4 убрал телефон из формы: пустой телефон допустим."""
+        p = schemas.PictureOrderCreate(
+            customer_name="Ivan", customer_email="i@t.com",
+            items=[schemas.OrderPictureItem(picture_id=1, offered_price=1)],
+        )
+        assert p.customer_phone == ""
 
     def test_phone_too_long(self):
         with pytest.raises(ValueError):
             schemas.PictureOrderCreate(
                 customer_name="Ivan", customer_email="i@t.com",
-                customer_phone="1" * 21, picture_ids=[1],
+                customer_phone="1" * 21,
+                items=[schemas.OrderPictureItem(picture_id=1, offered_price=1)],
             )
 
-    def test_empty_picture_ids(self):
+    def test_empty_items(self):
         with pytest.raises(ValueError):
             schemas.PictureOrderCreate(
                 customer_name="Ivan", customer_email="i@t.com",
-                customer_phone="123", picture_ids=[],
+                customer_phone="123", items=[],
+            )
+
+    def test_negative_offered_price(self):
+        with pytest.raises(ValueError):
+            schemas.PictureOrderCreate(
+                customer_name="Ivan", customer_email="i@t.com",
+                items=[schemas.OrderPictureItem(picture_id=1, offered_price=-1)],
             )
 
 
