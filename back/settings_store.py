@@ -16,7 +16,8 @@ DEFAULTS: dict[str, str] = {
     "sber_merchant_login": "",         # merchantLogin (идентификатор мерчанта)
     "sber_terminal": "",               # номер терминала
     "sber_key_id": "",                 # ID ключа (подпись ответов шлюза)
-    "sber_key": "",                    # ключ/пароль мерчанта — секрет, в UI маскируется
+    "sber_password": "",                # password для register.do/getOrderStatus.do
+    "sber_key": "",                     # ключ мерчанта для подписи, отдельно от password
 }
 
 ENV_FALLBACK: dict[str, str] = {
@@ -26,13 +27,14 @@ ENV_FALLBACK: dict[str, str] = {
     "sber_merchant_login": "SBER_MERCHANT_LOGIN",
     "sber_terminal": "SBER_TERMINAL",
     "sber_key_id": "SBER_KEY_ID",
+    "sber_password": "SBER_PASSWORD",
     "sber_key": "SBER_KEY",
 }
 
 TRUTHY = {"1", "true", "yes", "on", "вкл", "да"}
 
 # Секретные ключи: их нельзя показывать в админке целиком и нельзя писать в лог.
-SECRET_KEYS = {"sber_key"}
+SECRET_KEYS = {"sber_password", "sber_key"}
 
 
 def known_keys() -> list[str]:
@@ -99,7 +101,7 @@ def credentials(db) -> dict:
         "merchant_login": get_value(db, "sber_merchant_login"),
         "terminal": get_value(db, "sber_terminal"),
         "key_id": get_value(db, "sber_key_id"),
-        "password": get_value(db, "sber_key"),
+        "password": get_value(db, "sber_password"),
     }
 
 

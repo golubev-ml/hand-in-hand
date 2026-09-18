@@ -607,7 +607,7 @@ def settings_page(login: str = Depends(current_admin), db: Session = Depends(get
                 else "<span style='color:#b91c1c'>выключена</span>")
     flag_mail = ("включено" if mail_on else "выключено")
     warn = ("" if configured or not pay_on else
-            "<p style='color:#b91c1c'>Оплата включена, но userName/ключ не заданы — "
+            "<p style='color:#b91c1c'>Оплата включена, но userName/пароль шлюза не заданы — "
             "оформление заказа будет отвечать 503.</p>")
 
     rows = ""
@@ -618,12 +618,16 @@ def settings_page(login: str = Depends(current_admin), db: Session = Depends(get
         <td><input name="{key}" value="{value}" style="width:100%"></td>
         <td style="color:#6b7280;font-size:12px">{html.escape(hint)}{' · ' + html.escape(extra) if extra else ''}</td></tr>"""
 
-    secret = settings_store.get_value(db, "sber_key")
-    secret_hint = (f"сохранено {settings_store.mask(secret)}" if secret else "не задан") + \
-                  (" · " + _env_hint("sber_key") if _env_hint("sber_key") else "")
-    rows += f"""<tr><td>Ключ мерчанта (secret)</td>
-    <td><input name="sber_key" type="password" value="" placeholder="{html.escape(settings_store.mask(secret) or 'не задан')}" style="width:100%"></td>
-    <td style="color:#6b7280;font-size:12px">{html.escape(secret_hint)}. Пустое поле = оставить без изменений</td></tr>"""
+    for key, label, hint in (
+        ("sber_password", "Пароль шлюза", "Передаётся как password в register.do/getOrderStatus.do"),
+        ("sber_key", "Ключ мерчанта (secret)", "Ключ подписи; отдельно от пароля шлюза"),
+    ):
+        secret = settings_store.get_value(db, key)
+        secret_hint = (f"сохранено {settings_store.mask(secret)}" if secret else "не задан") + \
+                      (" · " + _env_hint(key) if _env_hint(key) else "")
+        rows += f"""<tr><td>{label}</td>
+        <td><input name="{key}" type="password" value="" placeholder="{html.escape(settings_store.mask(secret) or 'не задан')}" style="width:100%"></td>
+        <td style="color:#6b7280;font-size:12px">{html.escape(hint)}. {html.escape(secret_hint)}. Пустое поле = оставить без изменений</td></tr>"""
 
     body = f"""<h2>Настройки</h2>
     <div class="card">
@@ -639,7 +643,7 @@ def settings_page(login: str = Depends(current_admin), db: Session = Depends(get
     </div>
     <div class="card" style="color:#6b7280;font-size:13px">
     Значения хранятся в таблице <code>settings</code>; при пустом значении используется переменная
-    окружения (SBER_USER_NAME, SBER_KEY, SBER_TERMINAL, SBER_KEY_ID, EMAIL_AFTER_PURCHASE,
+    окружения (SBER_USER_NAME, SBER_PASSWORD, SBER_KEY, SBER_TERMINAL, SBER_KEY_ID, EMAIL_AFTER_PURCHASE,
     SBER_PAYMENTS_ENABLED). Base URL шлюза — env <code>SBER_BASE_URL</code>
     (по умолчанию {html.escape(sber_module.base_url())}). Секреты в логах маскируются.
     </div>"""
@@ -648,15 +652,16 @@ def settings_page(login: str = Depends(current_admin), db: Session = Depends(get
 
 @router.post("/settings")
 async def settings_save(request: Request, login: str = Depends(current_admin), db: Session = Depends(get_db)):
-    """Сохранение настроек. Пустое поле ключа — не трогать сохранённый секрет."""
+    """Сохранение настроек. Пустые секретные поля не меняют сохранённые значения."""
     form = await request.form()
     settings_store.set_bool(db, "payments_enabled", form.get("payments_enabled") == "on", login)
     settings_store.set_bool(db, "email_after_purchase", form.get("email_after_purchase") == "on", login)
     for key, _label, _hint in TEXT_SETTINGS:
         settings_store.set_value(db, key, (form.get(key) or "").strip(), login)
-    new_key = (form.get("sber_key") or "").strip()
-    if new_key:
-        settings_store.set_value(db, "sber_key", new_key, login)
+    for key in ("sber_password", "sber_key"):
+        new_secret = (form.get(key) or "").strip()
+        if new_secret:
+            settings_store.set_value(db, key, new_secret, login)
     db.add(Log(text="ADMIN settings обновлены", url="/admin/settings",
                request=f"payments={settings_store.get_value(db, 'payments_enabled')}, "
                        f"email={settings_store.get_value(db, 'email_after_purchase')}",

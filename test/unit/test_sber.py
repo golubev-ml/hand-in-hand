@@ -17,7 +17,7 @@ def isolated_env(monkeypatch):
     monkeypatch.setenv("SBER_BASE_URL", "https://mock.sber/ecomm/gateway/api/rest/")
     monkeypatch.setenv("BASE_URL", "https://hand-in-hand.ru")
     monkeypatch.setenv("SBER_USER_NAME", "unit-user")
-    monkeypatch.setenv("SBER_KEY", "unit-secret-key")
+    monkeypatch.setenv("SBER_PASSWORD", "unit-secret-key")
     monkeypatch.delenv("SBER_METHOD_ATTRS_JSON", raising=False)
     logs = []
     monkeypatch.setattr(sber, "log_exchange",
@@ -246,10 +246,10 @@ def test_log_contains_exchange_and_masks_secret(gateway, isolated_env):
 
 def test_is_configured_from_env_only(monkeypatch):
     monkeypatch.delenv("SBER_USER_NAME", raising=False)
-    monkeypatch.delenv("SBER_KEY", raising=False)
+    monkeypatch.delenv("SBER_PASSWORD", raising=False)
     assert sber.is_configured(None) is False
     monkeypatch.setenv("SBER_USER_NAME", "u")
-    monkeypatch.setenv("SBER_KEY", "k")
+    monkeypatch.setenv("SBER_PASSWORD", "k")
     assert sber.is_configured(None) is True
 
 

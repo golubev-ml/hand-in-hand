@@ -91,7 +91,7 @@ def gateway(monkeypatch):
     monkeypatch.setattr(sber, "_transport", httpx.MockTransport(handler))
     monkeypatch.setattr(sber, "log_exchange", lambda **kw: None)
     monkeypatch.setenv("SBER_USER_NAME", "unit-user")
-    monkeypatch.setenv("SBER_KEY", "unit-secret")
+    monkeypatch.setenv("SBER_PASSWORD", "unit-secret")
     return state
 
 
@@ -262,9 +262,9 @@ def test_gateway_registration_failure_fails_order(client, db, picture, gateway):
 def test_payments_on_without_credentials_returns_503(client, db, picture, monkeypatch):
     settings_store.set_value(db, "payments_enabled", "true")
     monkeypatch.delenv("SBER_USER_NAME", raising=False)
-    monkeypatch.delenv("SBER_KEY", raising=False)
+    monkeypatch.delenv("SBER_PASSWORD", raising=False)
     settings_store.set_value(db, "sber_user_name", "")
-    settings_store.set_value(db, "sber_key", "")
+    settings_store.set_value(db, "sber_password", "")
     r = client.post("/api/orders", json=_order_payload(picture.id, 1000))
     assert r.status_code == 503
     assert "учётные данные" in r.json()["detail"]

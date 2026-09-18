@@ -63,6 +63,7 @@ def test_settings_page_shows_flags_off_by_default(client):
     assert "Оплата включена" in body and "Отправлять письмо после покупки" in body
     assert "выключена" in body                      # оплата по умолчанию ВЫКЛ
     assert 'name="payments_enabled"' in body and 'name="email_after_purchase"' in body
+    assert 'name="sber_password" type="password"' in body
     assert 'name="sber_key" type="password"' in body
 
 
@@ -70,7 +71,8 @@ def test_flags_saved_and_read_back(client):
     r = client.post("/admin/settings", data={
         "payments_enabled": "on", "email_after_purchase": "on",
         "sber_user_name": "term-user", "sber_merchant_login": "merchant-1",
-        "sber_terminal": "22", "sber_key_id": "kid-9", "sber_key": "super-secret-value",
+        "sber_terminal": "22", "sber_key_id": "kid-9",
+        "sber_password": "gateway-password", "sber_key": "super-secret-value",
     }, follow_redirects=False)
     assert r.status_code == 302
 
@@ -79,6 +81,7 @@ def test_flags_saved_and_read_back(client):
         assert settings_store.get_bool(db, "payments_enabled") is True
         assert settings_store.get_bool(db, "email_after_purchase") is True
         assert settings_store.get_value(db, "sber_user_name") == "term-user"
+        assert settings_store.get_value(db, "sber_password") == "gateway-password"
         assert settings_store.get_value(db, "sber_key") == "super-secret-value"
     finally:
         db.close()
@@ -92,10 +95,12 @@ def test_flags_saved_and_read_back(client):
 def test_unchecked_payments_turns_off(client):
     client.post("/admin/settings", data={"payments_enabled": "on", "email_after_purchase": "on",
                                          "sber_user_name": "", "sber_merchant_login": "",
-                                         "sber_terminal": "", "sber_key_id": "", "sber_key": ""})
+                                         "sber_terminal": "", "sber_key_id": "",
+                                         "sber_password": "", "sber_key": ""})
     client.post("/admin/settings", data={"email_after_purchase": "on",
                                          "sber_user_name": "", "sber_merchant_login": "",
-                                         "sber_terminal": "", "sber_key_id": "", "sber_key": ""})
+                                         "sber_terminal": "", "sber_key_id": "",
+                                         "sber_password": "", "sber_key": ""})
     db = database.SessionLocal()
     try:
         assert settings_store.get_bool(db, "payments_enabled") is False
@@ -108,12 +113,14 @@ def test_empty_key_keeps_saved_secret(client):
     client.post("/admin/settings", data={"payments_enabled": "on", "email_after_purchase": "on",
                                          "sber_user_name": "u", "sber_merchant_login": "",
                                          "sber_terminal": "", "sber_key_id": "",
-                                         "sber_key": "keep-me-123"})
+                                         "sber_password": "keep-password", "sber_key": "keep-me-123"})
     client.post("/admin/settings", data={"payments_enabled": "on", "email_after_purchase": "on",
                                          "sber_user_name": "u", "sber_merchant_login": "",
-                                         "sber_terminal": "", "sber_key_id": "", "sber_key": ""})
+                                         "sber_terminal": "", "sber_key_id": "",
+                                         "sber_password": "", "sber_key": ""})
     db = database.SessionLocal()
     try:
+        assert settings_store.get_value(db, "sber_password") == "keep-password"
         assert settings_store.get_value(db, "sber_key") == "keep-me-123"
     finally:
         db.close()
