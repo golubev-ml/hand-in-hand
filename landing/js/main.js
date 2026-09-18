@@ -83,7 +83,7 @@
     'ИНН 1655509496 · КПП 165501001\n' +
     'Адрес: 420043, РТ, г. Казань, ул. Бойничная, д. 5, помещ. 6\n' +
     'Руководитель: Ахмадеева Алина Галиевна\n' +
-    'Банковские реквизиты для пожертвований — по запросу: ahmadeeva.alina97@gmail.com';
+    'Банковские реквизиты для пожертвований — по запросу: rukaobruku.fond@gmail.com';
 
   doc.querySelectorAll('.js-copy-all').forEach(function (b) {
     b.addEventListener('click', function () {
@@ -169,12 +169,215 @@
 
   doc.querySelectorAll('.reveal, .donut-wrap').forEach(function (el) { io.observe(el); });
 
-  /* ---------- Лёгкий параллакс фото ---------- */
-  var photo = doc.querySelector('.hero-photo');
-  if (photo && window.matchMedia('(prefers-reduced-motion: no-preference)').matches) {
-    window.addEventListener('scroll', function () {
-      var y = Math.min(window.scrollY, 700);
-      photo.style.transform = 'translateY(' + (y * 0.045) + 'px)';
-    }, { passive: true });
+  /* ---------- Цели Яндекс.Метрики (ID приходит из env YANDEX_METRIKA_ID) ----------
+     ВАЖНО (почему в кабинете может быть 0 при живых запросах в DevTools):
+     1) Статистика визитов и конверсий обновляется с задержкой до 24 часов —
+        сразу после установки счётчика «0 посещений» это нормально.
+     2) Цели нужно завести в интерфейсе Яндекс.Метрики:
+        Настройки счётчика → «Цели» → Добавить цель, тип «JavaScript-событие»,
+        точные имена: donate_click, volunteer_click, copy_requisites, nav_click,
+                      pay_create, pay_success.
+        Без заведённых целей reachGoal-события в отчёты не попадут.
+     3) pay_create/pay_success срабатывают только при включённой онлайн-оплате
+        (paymentsEnabled=true в админке). Пока оплата выключена — этих событий нет. */
+  function ymGoal(name, params) {
+    /* guard: если счётчик не загрузился (adblock, пустой YANDEX_METRIKA_ID) — молча пропускаем.
+       ID берём из window.YM_ID (его публикует index.html), чтобы не держать его в двух местах */
+    try {
+      var id = Number(window.YM_ID);
+      if (id && typeof window.ym === 'function') window.ym(id, 'reachGoal', name, params);
+    } catch (e) { /* noop */ }
   }
+
+  /* клик по любой кнопке "Пожертвовать" (шапка, hero, футер) = открытие модалки */
+  doc.querySelectorAll('.js-open-modal, .hdr-cta, .hero-actions .btn-terra').forEach(function (btn) {
+    btn.addEventListener('click', function () { ymGoal('donate_click'); });
+  });
+
+  /* "Стать волонтёром" и переходы к разделу "Как помочь" */
+  doc.querySelectorAll('a[href="#volunteer"], .link-arrow').forEach(function (link) {
+    link.addEventListener('click', function () { ymGoal('volunteer_click'); });
+  });
+
+  /* копирование реквизитов в модалке */
+  doc.querySelectorAll('.js-copy-all').forEach(function (btn) {
+    btn.addEventListener('click', function () { ymGoal('copy_requisites'); });
+  });
+
+  /* переходы по навигационным ссылкам шапки (цель nav_click + секция в параметрах) */
+  doc.querySelectorAll('#nav a').forEach(function (a) {
+    a.addEventListener('click', function () {
+      ymGoal('nav_click', { section: a.getAttribute('href') });
+    });
+  });
+
+  /* ---------- Онлайн-оплата ----------
+     Кнопки оплаты есть в разметке, но скрыты (.pay-block { display:none }).
+     Появляются ТОЛЬКО если бэкенд ответил paymentsEnabled:true.
+     Бэкенд может лежать, отсутствовать вовсе или быть отрезан блокировщиком —
+     тогда страница ведёт себя ровно как до подключения оплаты. */
+
+  var PAY_API = '/api'; /* API на корне домена: https://hand-in-hand-kzn.ru/api/... */
+
+  var payBlock = doc.getElementById('payBlock');
+  var payGo = doc.getElementById('payGo');
+  var payHint = doc.getElementById('payHint');
+  var payCustom = doc.getElementById('payCustom');
+  var payState = { enabled: false, sum: 0, method: '', min: 10, max: 1500000 };
+
+  function setPayHint(text) {
+    if (payHint) payHint.textContent = text;
+  }
+
+  /** fetch + разбор JSON + таймаут. Сообщение ошибки берём от бэкенда, если он его вернул. */
+  function fetchJson(url, options, timeoutMs) {
+    var opts = options || {};
+    var timer = null;
+    if (window.AbortController && timeoutMs) {
+      var controller = new AbortController();
+      opts.signal = controller.signal;
+      timer = setTimeout(function () { controller.abort(); }, timeoutMs);
+    }
+    return fetch(url, opts).then(function (res) {
+      if (timer) clearTimeout(timer);
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        if (!res.ok) throw new Error(data && data.error ? data.error : 'Ошибка сервера');
+        return data;
+      });
+    }, function (e) {
+      if (timer) clearTimeout(timer);
+      throw e;
+    });
+  }
+
+  function refreshPayButton() {
+    if (!payGo) return;
+    var ok = payState.enabled && payState.sum >= payState.min && payState.sum <= payState.max && Boolean(payState.method);
+    payGo.disabled = !ok;
+    if (ok) setPayHint('Переведём на защищённую страницу банка');
+    else if (!payState.sum) setPayHint('Выберите сумму');
+    else if (!payState.method) setPayHint('Выберите способ оплаты');
+    else setPayHint('Сумма от ' + payState.min + ' до ' + payState.max.toLocaleString('ru-RU') + ' ₽');
+  }
+
+  function selectSum(rub) {
+    payState.sum = Number(rub) || 0;
+    doc.querySelectorAll('#paySums .pay-sum').forEach(function (b) {
+      b.classList.toggle('sel', Number(b.getAttribute('data-sum')) === payState.sum);
+    });
+    refreshPayButton();
+  }
+
+  function selectMethod(method) {
+    payState.method = method;
+    doc.querySelectorAll('#payMethods .pay-method').forEach(function (b) {
+      b.classList.toggle('sel', b.getAttribute('data-method') === method);
+    });
+    refreshPayButton();
+  }
+
+  function startPayment() {
+    if (!payGo || payGo.disabled) return;
+    payGo.disabled = true;
+    setPayHint('Создаём платёж…');
+
+    var kopecks = Math.round(payState.sum * 100);
+    fetchJson(PAY_API + '/payments/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: makeOrderNumber(), amount: kopecks, method: payState.method })
+    }, 25000).then(function (res) {
+      if (!res || !res.redirectUrl) throw new Error('банк не вернул ссылку на оплату');
+      ymGoal('pay_create', { method: payState.method, amount: kopecks });
+      setPayHint('Открываем страницу банка…');
+      window.location.href = res.redirectUrl;
+    }).catch(function (e) {
+      payGo.disabled = false;
+      setPayHint('Не получилось начать оплату — ' + (e && e.message ? e.message : 'нет связи с сервером') +
+        '. Можно перевести по реквизитам ниже.');
+    });
+  }
+
+  /** Номер заказа: HH + YYMMDDHHMMSS + 4 случайных hex. Укладывается в [A-Z0-9_-]{4,20}. */
+  function makeOrderNumber() {
+    var d = new Date();
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    var rnd = Math.floor(Math.random() * 0xffff).toString(16).toUpperCase();
+    while (rnd.length < 4) rnd = '0' + rnd;
+    return ('HH' + String(d.getFullYear()).slice(2) + pad(d.getMonth() + 1) + pad(d.getDate()) +
+      pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds()) + rnd).slice(0, 20);
+  }
+
+  function enablePayments(cfg) {
+    payState.enabled = true;
+    payState.min = Math.ceil((cfg.minAmountKopecks || 1000) / 100);
+    payState.max = Math.floor((cfg.maxAmountKopecks || 150000000) / 100);
+    payState.chips = [300, 500, 1000].filter(function (v) { return v >= payState.min && v <= payState.max; });
+
+    if (payCustom) {
+      payCustom.setAttribute('min', payState.min);
+      payCustom.setAttribute('max', payState.max);
+    }
+    var allowed = cfg.methods || ['sbp', 'mirpay', 'sberpay'];
+    doc.querySelectorAll('#payMethods .pay-method').forEach(function (b) {
+      if (allowed.indexOf(b.getAttribute('data-method')) === -1) b.style.display = 'none';
+    });
+    payBlock.classList.add('pay-on');
+    /* предвыбираем 500 ₽ — самая частая сумма пожертвования, если она в допустимом диапазоне */
+    if (payState.chips.length) selectSum(payState.chips.indexOf(500) > -1 ? 500 : payState.chips[0]);
+    else refreshPayButton();
+  }
+
+  function loadPayConfig() {
+    if (!payBlock || typeof window.fetch !== 'function') return;
+    fetchJson(PAY_API + '/config', { cache: 'no-store' }, 5000).then(function (cfg) {
+      /* false / нет ответа / истёк таймаут — оплату не показываем */
+      if (cfg && cfg.paymentsEnabled === true) enablePayments(cfg);
+    }).catch(function () { /* бэкенда нет — оставляем прежнее поведение */ });
+  }
+
+  if (payGo) payGo.addEventListener('click', startPayment);
+  doc.querySelectorAll('#paySums .pay-sum').forEach(function (b) {
+    b.addEventListener('click', function () {
+      if (payCustom) payCustom.value = '';
+      selectSum(Number(b.getAttribute('data-sum')));
+    });
+  });
+  doc.querySelectorAll('#payMethods .pay-method').forEach(function (b) {
+    b.addEventListener('click', function () { selectMethod(b.getAttribute('data-method')); });
+  });
+  if (payCustom) {
+    payCustom.addEventListener('input', function () {
+      var v = Math.floor(Number(payCustom.value));
+      if (!v) { payState.sum = 0; refreshPayButton(); return; }
+      selectSum(v);
+    });
+  }
+
+  /* Баннер по результату редиректа от банка: /variant2/?payment=success */
+  function showPaymentResult() {
+    var m = /[?&]payment=([^&]+)/.exec(window.location.search || '');
+    if (!m) return;
+    var status = decodeURIComponent(m[1]);
+    var messages = {
+      success: 'Спасибо! Платёж прошёл — вы очень помогли.',
+      pending: 'Платёж принят, банк его подтверждает. Если деньги списались — спасибо!',
+      failed: 'Оплата не прошла. Попробуйте ещё раз или переведите по реквизитам.',
+      unknown: 'Не удалось найти этот платёж. Напишите нам, если деньги списались.',
+      back: 'Возврат на сайт.'
+    };
+    if (status === 'success') ymGoal('pay_success');
+    if (messages[status]) showToast(messages[status]);
+
+    /* убираем только payment=, utm-метки и прочие параметры сохраняем */
+    if (window.history && window.history.replaceState && window.URLSearchParams) {
+      var params = new URLSearchParams(window.location.search);
+      params.delete('payment');
+      var qs = params.toString();
+      window.history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash);
+    }
+  }
+
+  loadPayConfig();
+  showPaymentResult();
 })();
