@@ -36,6 +36,12 @@ CURRENCY_RUB = 643
 TIMEOUT_SECONDS = float(os.getenv("SBER_TIMEOUT_SECONDS", "15"))
 RETRIES = int(os.getenv("SBER_RETRIES", "3"))
 
+
+def verify_ssl() -> bool:
+    """TLS verification may be disabled only for Sber's test contour."""
+    raw = os.getenv("SBER_VERIFY_SSL", "true").strip().lower()
+    return raw not in {"0", "false", "no", "off"}
+
 # Способы оплаты, которые умеем регистрировать (WEB-канал).
 METHODS = ("card", "sbp", "sberpay", "mirpay")
 
@@ -133,7 +139,7 @@ def log_exchange(text: str, url: str, request: str, response: str) -> None:
 def _client() -> httpx.Client:
     if _transport is not None:
         return httpx.Client(transport=_transport, timeout=TIMEOUT_SECONDS)
-    return httpx.Client(timeout=TIMEOUT_SECONDS)
+    return httpx.Client(timeout=TIMEOUT_SECONDS, verify=verify_ssl())
 
 
 def _decode(data: bytes, endpoint: str):
