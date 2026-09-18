@@ -37,8 +37,11 @@ services:
       BASE_URL: ${BASE_URL:-https://hand-in-hand-kzn.ru}
       # HIH-9: контур шлюза. Бой — https://securepay.sberbank.ru/ecomm/gateway/api/rest/
       SBER_BASE_URL: ${SBER_BASE_URL:-https://ecomtest.sberbank.ru/ecomm/gateway/api/rest/}
+      SBER_VERIFY_SSL: ${SBER_VERIFY_SSL:-true}
       # Учётные данные шлюза живут в БД (админка /admin/settings); env — только фолбэк
       SBER_USER_NAME: ${SBER_USER_NAME:-}
+      SBER_PASSWORD: ${SBER_PASSWORD:-}
+      SBER_MERCHANT_LOGIN: ${SBER_MERCHANT_LOGIN:-}
       SBER_KEY: ${SBER_KEY:-}
       SBER_TERMINAL: ${SBER_TERMINAL:-}
       SBER_KEY_ID: ${SBER_KEY_ID:-}
