@@ -1,7 +1,7 @@
 """HIH-9: адаптер универсального платёжного шлюза Сбербанка (SberBank ecomm).
 
 Контур по умолчанию — тестовый:  https://ecomtest.sberbank.ru/ecomm/gateway/api/rest/
-Боевой:                            https://securepay.sberbank.ru/ecomm/gateway/api/rest/
+Боевой:                            https://securepayments.sberbank.ru/payment/rest/
 Переключается одной переменной SBER_BASE_URL (она же подменяется моком в тестах).
 
 Соглашения, заложенные в ТЗ и здесь:
@@ -23,14 +23,18 @@
 import json
 import os
 import re
+import ssl
 import time
+from pathlib import Path
 
+import certifi
 import httpx
 
 import settings_store
 
 TEST_BASE_URL = "https://ecomtest.sberbank.ru/ecomm/gateway/api/rest/"
-PROD_BASE_URL = "https://securepay.sberbank.ru/ecomm/gateway/api/rest/"
+PROD_BASE_URL = "https://securepayments.sberbank.ru/payment/rest/"
+RUSSIAN_TRUSTED_ROOT_CA = Path(__file__).resolve().parents[1] / "certs" / "russian_trusted_root_ca.pem"
 
 CURRENCY_RUB = 643
 TIMEOUT_SECONDS = float(os.getenv("SBER_TIMEOUT_SECONDS", "15"))
@@ -139,7 +143,12 @@ def log_exchange(text: str, url: str, request: str, response: str) -> None:
 def _client() -> httpx.Client:
     if _transport is not None:
         return httpx.Client(transport=_transport, timeout=TIMEOUT_SECONDS)
-    return httpx.Client(timeout=TIMEOUT_SECONDS, verify=verify_ssl())
+    if not verify_ssl():
+        return httpx.Client(timeout=TIMEOUT_SECONDS, verify=False)
+    context = ssl.create_default_context(cafile=certifi.where())
+    if RUSSIAN_TRUSTED_ROOT_CA.exists():
+        context.load_verify_locations(cafile=RUSSIAN_TRUSTED_ROOT_CA)
+    return httpx.Client(timeout=TIMEOUT_SECONDS, verify=context)
 
 
 def _decode(data: bytes, endpoint: str):

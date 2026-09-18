@@ -62,7 +62,7 @@ def test_base_url_uses_env_and_defaults_to_test_contour(monkeypatch):
     monkeypatch.delenv("SBER_BASE_URL")
     assert sber.base_url() == sber.TEST_BASE_URL
     assert sber.TEST_BASE_URL.startswith("https://ecomtest.sberbank.ru/")
-    assert sber.PROD_BASE_URL.startswith("https://securepay.sberbank.ru/")
+    assert sber.PROD_BASE_URL.startswith("https://securepayments.sberbank.ru/")
 
 
 @pytest.mark.parametrize("rub,kopecks", [

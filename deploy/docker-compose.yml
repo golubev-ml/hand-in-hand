@@ -35,7 +35,7 @@ services:
       MAIL_FROM: ${MAIL_FROM:-noreply@kraski-detstva.ru}
       # Основной домен: на него строятся returnUrl/failUrl для шлюза Сбера
       BASE_URL: ${BASE_URL:-https://hand-in-hand-kzn.ru}
-      # HIH-9: контур шлюза. Бой — https://securepay.sberbank.ru/ecomm/gateway/api/rest/
+      # HIH-9: контур шлюза. Бой — https://securepayments.sberbank.ru/payment/rest/
       SBER_BASE_URL: ${SBER_BASE_URL:-https://ecomtest.sberbank.ru/ecomm/gateway/api/rest/}
       SBER_VERIFY_SSL: ${SBER_VERIFY_SSL:-true}
       # Учётные данные шлюза живут в БД (админка /admin/settings); env — только фолбэк
