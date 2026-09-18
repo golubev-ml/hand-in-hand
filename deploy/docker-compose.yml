@@ -115,7 +115,7 @@ services:
     container_name: hand-in-hand-traefik
     profiles: ["bundled-proxy"]
     environment:
-      DOCKER_API_VERSION: "1.24"
+      DOCKER_API_VERSION: "1.40"
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
