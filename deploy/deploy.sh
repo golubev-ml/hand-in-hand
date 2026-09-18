@@ -26,6 +26,17 @@ done
 . "./env/$DEPLOY_ENV.env"
 set +a
 
+TRAEFIK_NETWORK="${TRAEFIK_NETWORK:-deploy_web}"
+if [ "${USE_EXTERNAL_TRAEFIK:-false}" = "true" ]; then
+  docker network inspect "$TRAEFIK_NETWORK" >/dev/null
+  PROXY_ARGS=()
+  PROXY_SERVICES=()
+else
+  docker network inspect "$TRAEFIK_NETWORK" >/dev/null 2>&1 || docker network create "$TRAEFIK_NETWORK" >/dev/null
+  PROXY_ARGS=(--profile bundled-proxy)
+  PROXY_SERVICES=(traefik)
+fi
+
 echo "[1/5] Starting database..."
 docker compose up -d db
 if [ "${APP_ENV:-local}" != "prod" ]; then
@@ -45,7 +56,7 @@ echo "[3/5] Running migrations..."
 docker compose run --rm api sh -c 'cd /app && alembic upgrade head'
 
 echo "[4/5] Starting api, frontend, landing, traefik..."
-docker compose up -d api frontend landing traefik
+docker compose "${PROXY_ARGS[@]}" up -d api frontend landing "${PROXY_SERVICES[@]}"
 
 echo "[5/5] Waiting for Let's Encrypt + HTTPS..."
 DOMAIN="${DOMAIN:-hand-in-hand-kzn.ru}"
