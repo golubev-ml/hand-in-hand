@@ -39,7 +39,8 @@
 
 Маршрутизация — traefik **v2.11** (на сервере старый Docker API 1.24, v3 не стартует),
 сертификаты Let's Encrypt по HTTP-01, наружу опубликованы только 80/443. Лендинг
-собирается из `landing/index.html`; префикс `/landing` снимается Traefik перед nginx.
+собирается из полноценного приложения `landing/` (бывший `variant2` из
+`one-sheet-main`); префикс `/landing` снимается Traefik перед nginx.
 По умолчанию профили поднимают встроенный proxy. При необходимости сервисы можно
 подключить к уже работающему Traefik через внешнюю Docker-сеть; это задают
 `USE_EXTERNAL_TRAEFIK` и `TRAEFIK_NETWORK`.

@@ -1,47 +1,16 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Рука об руку — фонд поддержки детей</title>
-  <meta name="description" content="Лендинг фонда АНО БП «Рука об руку». Благотворительная галерея детских рисунков.">
-  <style>
-    :root { --green: #4A7C59; --cream: #FEFAF4; --sand: #E8DCC8; --ink: #2C2416; --muted: #6B5B42; }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
-      background: var(--cream); color: var(--ink); padding: 24px;
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    }
-    .card {
-      max-width: 620px; background: #FFFCF7; border: 1px solid var(--sand);
-      border-radius: 20px; padding: 40px 32px; text-align: center;
-    }
-    h1 { font-size: 26px; margin: 0 0 12px; color: var(--green); }
-    p { color: var(--muted); line-height: 1.65; font-size: 15px; margin: 0 0 18px; }
-    a { color: var(--green); font-weight: 600; }
-    .contacts { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--sand); font-size: 14px; color: var(--muted); }
-    .note { margin-top: 18px; font-size: 12px; color: #A89070; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <h1>Фонд «Рука об руку»</h1>
-    <p>
-      Мы поддерживаем детей, проходящих лечение, через творчество: студии рисования,
-      выставки и благотворительная онлайн-галерея работ юных художников.
-    </p>
-    <p>
-      Галерея с рисунками и оформлением заказа — на основном сайте:
-      <a href="${SITE_URL}">${SITE_HOST}</a>
-    </p>
-    <div class="contacts">
-      Телефон: <a href="tel:+79870072252">+7 (987) 007-22-52</a><br>
-      Почта: <a href="mailto:rukaobruku.fond@gmail.com">rukaobruku.fond@gmail.com</a><br>
-      420043, Республика Татарстан, г. Казань, Бойничная ул., д. 5, помещ. 6
-    </div>
-    <p class="note">Техническая заглушка: раздел наполняется командой фонда.</p>
-  </div>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base href="/landing/">
+  <meta name="description" content="АНО БП «Рука об руку» — казанский фонд помощи женщинам и детям в кризисных ситуациях.">
+  <title>«Рука об руку» — мы рядом, когда трудно · Казань</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%232268b1'/%3E%3Cpath d='M32 46s-13-8.4-15.6-16C14.4 24 18 19.4 23.4 19.4c3.4 0 6.4 1.9 8.6 5 2.2-3.1 5.2-5 8.6-5 5.4 0 9 4.6 7 10.6C45 37.6 32 46 32 46z' fill='%23FBF3EA'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Alice&family=Caveat:wght@500;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
   <script>
     (() => {
       const id = "${YANDEX_METRIKA_ID}";
@@ -55,5 +24,338 @@
       window.ym(Number(id), "init", { clickmap: true, trackLinks: true, accurateTrackBounce: true });
     })();
   </script>
+</head>
+<body>
+
+  <header class="hdr" id="hdr">
+    <div class="wrap hdr-in">
+      <a class="logo" href="#top" aria-label="Рука об руку — на главную">
+        <svg class="logo-mark" viewBox="0 0 48 48" aria-hidden="true">
+          <path d="M24 38S11.5 30 9 22.7C7 17 10.5 12.5 15.7 12.5c3.3 0 6.2 1.8 8.3 4.8 2.1-3 5-4.8 8.3-4.8 5.2 0 8.7 4.5 6.7 10.2C36.5 30 24 38 24 38z" fill="#2268b1"/>
+          <path d="M14 26c3-4.4 6.4-6.6 10-6.6S31 21.6 34 26" fill="none" stroke="#FBF3EA" stroke-width="2.2" stroke-linecap="round"/>
+        </svg>
+        <span class="logo-txt">
+          <strong>Рука об руку</strong>
+          <small>фонд · Казань</small>
+        </span>
+      </a>
+      <nav class="nav" id="nav" aria-label="Основная навигация">
+        <a href="#programs">Наши программы</a>
+        <a href="#who">Кому помогаем</a>
+        <a href="#volunteer">Как помочь</a>
+        <a href="#funds">Прозрачность</a>
+        <a href="#donations">Пожертвования</a>
+        <a href="#contacts">Контакты</a>
+      </nav>
+      <button class="btn btn-terra hdr-cta js-open-modal">Пожертвовать</button>
+      <button class="burger" id="burger" aria-label="Открыть меню" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
+  <main id="top">
+
+    <!-- Первый экран -->
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="script reveal">фонд из Казани</p>
+          <h1 class="reveal" data-d="1">Мы рядом с теми, кто<br>остался <em>один на один</em> с бедой</h1>
+          <p class="lead reveal" data-d="2">
+            «Рука об руку» поддерживает женщин и&nbsp;детей в&nbsp;трудных и&nbsp;кризисных ситуациях:
+            жильё и&nbsp;продукты, помощь детям, психолог и&nbsp;просто люди рядом.
+            Мы официально собираем пожертвования и&nbsp;помогаем адресно&nbsp;— конкретной семье.
+          </p>
+          <div class="hero-actions reveal" data-d="3">
+            <button class="btn btn-terra btn-lg js-open-modal">
+              <svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg>
+              Пожертвовать
+            </button>
+            <a class="link-arrow" href="#volunteer">Стать волонтёром
+              <svg class="ic" aria-hidden="true"><use href="#i-arrow"/></svg>
+            </a>
+          </div>
+        </div>
+        <div class="hero-photo reveal" data-d="2">
+          <div class="blob">
+            <img src="images/hero.png" alt="Волонтёры фонда" loading="eager">
+          </div>
+          <svg class="spin-badge" viewBox="0 0 120 120" aria-hidden="true">
+            <defs><path id="badge-circ" d="M60,60 m-46,0 a46,46 0 1,1 92,0 a46,46 0 1,1 -92,0"/></defs>
+            <circle cx="60" cy="60" r="59" fill="#322C26"/>
+            <text fill="#de789d" font-size="11.4" letter-spacing="2.4">
+              <textPath href="#badge-circ">рука об руку • казань • вместе •&#160;</textPath>
+            </text>
+            <path d="M60 74s-11-7.2-13.2-13.7C45 55 48.2 51 52.8 51c2.9 0 5.5 1.6 7.2 4.3 1.7-2.7 4.3-4.3 7.2-4.3 4.6 0 7.8 4 6 9.3C71 66.8 60 74 60 74z" fill="#de789d"/>
+          </svg>
+          <p class="photo-caption script">наши волонтёры</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- БЕГУЩАЯ СТРОКА С ПОЖЕРТВОВАНИЯМИ -->
+    <div class="marquee marquee-donations" id="donations">
+      <div class="marquee-label">
+        <span>Помогли недавно</span>
+      </div>
+      <div class="marquee-track">
+        <!-- Плашки пожертвований -->
+        <div class="donation-ticker"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg><span><strong>4 000 ₽</strong> · 21 августа 2026</span></div>
+        <div class="donation-ticker"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg><span><strong>10 ₽</strong> · 21 августа 2026</span></div>
+        <div class="donation-ticker"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg><span><strong>500 ₽</strong> · 19 августа 2026</span></div>
+        <div class="donation-ticker"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg><span><strong>10 ₽</strong> · 19 августа 2026</span></div>
+        <div class="donation-ticker"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg><span><strong>600 ₽</strong> · 14 августа 2026</span></div>
+        <div class="donation-ticker"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg><span><strong>500 ₽</strong> · 14 августа 2026</span></div>
+
+        <!-- Дублируем для бесшовной прокрутки -->
+        <div class="donation-ticker"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg><span><strong>4 000 ₽</strong> · 21 августа 2026</span></div>
+        <div class="donation-ticker"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg><span><strong>10 ₽</strong> · 21 августа 2026</span></div>
+        <div class="donation-ticker"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg><span><strong>500 ₽</strong> · 19 августа 2026</span></div>
+        <div class="donation-ticker"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg><span><strong>10 ₽</strong> · 19 августа 2026</span></div>
+        <div class="donation-ticker"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg><span><strong>600 ₽</strong> · 14 августа 2026</span></div>
+        <div class="donation-ticker"><svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg><span><strong>500 ₽</strong> · 14 августа 2026</span></div>
+      </div>
+    </div>
+
+    <!-- Статы (4 кубика) -->
+    <section class="sec stats-sec">
+      <div class="wrap">
+        <div class="stats-grid">
+          <div class="stat-card reveal"><span class="script">3+</span><p>года работы</p></div>
+          <div class="stat-card reveal" data-d="1"><span class="script">140+</span><p>семьям оказана помощь</p></div>
+          <div class="stat-card reveal" data-d="2"><span class="script">40+</span><p>благотворительных обедов</p></div>
+          <div class="stat-card reveal" data-d="3"><span class="script">80+</span><p>женщин получили поддержку</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Наши программы -->
+    <section class="sec sec-sand" id="programs">
+      <div class="wrap">
+        <div class="sec-head">
+          <div>
+            <p class="script reveal">наши проекты</p>
+            <h2 class="reveal" data-d="1">Наши программы</h2>
+          </div>
+          <p class="sec-lead reveal" data-d="2">Мы верим, что даже маленькая помощь меняет жизнь. Каждый наш проект — это возможность подарить тепло, заботу и веру в лучшее тем, кто в этом особенно нуждается.</p>
+        </div>
+
+        <div class="programs-grid">
+          <article class="prog-card reveal">
+            <h3>Благотворительная онлайн-галерея</h3>
+            <p>Пространство, где искусство служит добру. Все средства от продажи картин направляются в больницу — на поддержку, лечение и улыбки детей. Приобретая работу, вы не просто покупаете искусство. Вы дарите ребёнку шанс на исцеление, тепло и веру в чудо.</p>
+          </article>
+          <article class="prog-card reveal" data-d="1">
+            <h3>Сбор средств на реабилитацию для детей с ОВЗ</h3>
+            <p>Помогаем детям с особыми потребностями делать шаги к здоровью. Мы организуем сбор средств на курсы реабилитации, массажи, занятия с логопедами и дефектологами, технические средства реабилитации. Наша цель — чтобы каждый ребёнок получил шанс на развитие и радостное детство.</p>
+          </article>
+          <article class="prog-card reveal" data-d="2">
+            <h3>Адресная помощь семьям</h3>
+            <p>Поддержка, которая приходит точно вовремя. Мы оказываем адресную помощь семьям, оказавшимся в трудной жизненной ситуации: продукты, одежда, предметы первой необходимости, бытовая техника. Мы не просто передаём вещи — мы даём чувство, что их не оставили одних.</p>
+          </article>
+          <article class="prog-card reveal" data-d="3">
+            <h3>Благотворительные обеды</h3>
+            <p>Тёплая еда — тёплые сердца. Мы организуем горячие обеды для нуждающихся. Это возможность собраться за одним столом, почувствовать заботу и человеческое участие.</p>
+          </article>
+          <article class="prog-card reveal" data-d="4">
+            <h3>Фотопроект «Тепло мгновений»</h3>
+            <p>Запечатлеваем счастье в кадре. Мы создаём искренние, живые фотографии для семей и детей, оказавшихся в сложной ситуации. Эти снимки становятся напоминанием о светлых моментах, которые останутся с ними навсегда.</p>
+          </article>
+          <article class="prog-card reveal" data-d="5">
+            <h3>Проект «Преображение для мамы»</h3>
+            <p>Каждая мама — главная женщина в жизни своих детей. Мы дарим мамам, оказавшимся в сложной ситуации, день заботы и красоты. Посещение салона, смена образа, внимание и тепло — чтобы они снова увидели в отражении себя, почувствовали уверенность и поняли: они прекрасны, они важны, они не одни.</p>
+          </article>
+          <div class="prog-note reveal">
+            <p>Каждый проект — это шаг к добру. Мы открыты к сотрудничеству, благодарны за любую помощь и приглашаем вас стать частью наших добрых дел. Вместе мы можем больше.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Кому мы помогаем -->
+    <section class="sec" id="who">
+      <div class="wrap">
+        <div class="sec-head">
+          <div>
+            <p class="script reveal">наши подопечные</p>
+            <h2 class="reveal" data-d="1">Кому мы помогаем</h2>
+          </div>
+          <p class="sec-lead reveal" data-d="2">Мы рядом с теми, кто в силу обстоятельств остался один на один с бедой. С теми, кому особенно нужна поддержка и забота.</p>
+        </div>
+        <div class="who-grid">
+          <div class="who-card reveal">
+            <h3>Детям с ограниченными возможностями здоровья</h3>
+            <p>Особенные дети, которым нужны реабилитация, занятия, забота и шанс на развитие. Мы помогаем им делать маленькие, но такие важные шаги к счастью.</p>
+          </div>
+          <div class="who-card reveal" data-d="1">
+            <h3>Матерям с детьми в кризисной ситуации</h3>
+            <p>Когда рухнул привычный мир, а рядом — маленькие дети, которым нужны силы и опора. Мы помогаем мамам встать на ноги и снова поверить в себя.</p>
+          </div>
+          <div class="who-card reveal" data-d="2">
+            <h3>Многодетным и малоимущим семьям</h3>
+            <p>Семьи, которые оказались за чертой бедности, но продолжают бороться за будущее своих детей. Мы даём им ресурсы, чтобы справиться с трудностями.</p>
+          </div>
+          <div class="who-card reveal" data-d="3">
+            <h3>Беременным женщинам</h3>
+            <p>Тех, кто ждёт появления новой жизни, но столкнулся с непониманием, страхом или одиночеством. Мы поддерживаем будущих мам, чтобы они чувствовали себя защищёнными.</p>
+          </div>
+        </div>
+        <p class="who-note reveal">Помощь детским учреждениям — мы не проходим мимо. Мы протягиваем руку.</p>
+      </div>
+    </section>
+
+    <!-- Как помочь -->
+    <section class="sec sec-sand" id="volunteer">
+      <div class="wrap">
+        <div class="sec-head">
+          <div>
+            <p class="script reveal">присоединяйтесь</p>
+            <h2 class="reveal" data-d="1">Как помочь?</h2>
+          </div>
+        </div>
+        <div class="help-list reveal">
+  <div class="help-item">
+    <img src="images/donate.png" alt="Пожертвовать" class="help-ic-img">
+    <h3>Пожертвовать</h3><p>Любая сумма работает на чью-то жизнь.</p></div>
+  <div class="help-item">
+    <img src="images/clothes.png" alt="Передать вещи" class="help-ic-img">
+    <h3>Передать вещи</h3><p>Чистая одежда, обувь, детские товары.</p></div>
+  <div class="help-item">
+    <img src="images/partner.png" alt="Стать партнёром" class="help-ic-img">
+    <h3>Стать партнёром</h3><p>Ваш бизнес может сделать добро системным.</p></div>
+  <div class="help-item">
+    <img src="images/volunteer.png" alt="Прийти волонтёром" class="help-ic-img">
+    <h3>Прийти волонтёром</h3><p>Нужны руки, сердца, улыбки и время.</p></div>
+  <div class="help-item">
+    <img src="images/event.png" alt="Организовать событие" class="help-ic-img">
+    <h3>Организовать событие</h3><p>Концерт, ярмарка, акция — любой формат.</p></div>
+</div>
+      </div>
+    </section>
+
+    <!-- Прозрачность -->
+    <section class="sec" id="funds">
+      <div class="wrap funds-grid">
+        <div class="donut-wrap reveal">
+          <svg class="donut" viewBox="0 0 120 120" role="img" aria-label="Диаграмма: куда идут средства фонда">
+            <g transform="rotate(-90 60 60)">
+              <circle class="seg" cx="60" cy="60" r="50" pathLength="100" data-len="45" stroke-dashoffset="0" style="--c:#2268b1"/>
+              <circle class="seg" cx="60" cy="60" r="50" pathLength="100" data-len="30" stroke-dashoffset="-45" style="--c:#de789d"/>
+              <circle class="seg" cx="60" cy="60" r="50" pathLength="100" data-len="15" stroke-dashoffset="-75" style="--c:#5c4875"/>
+              <circle class="seg" cx="60" cy="60" r="50" pathLength="100" data-len="10" stroke-dashoffset="-90" style="--c:#d4e6ff"/>
+            </g>
+          </svg>
+          <div class="donut-center">
+            <svg class="ic" aria-hidden="true"><use href="#i-heart"/></svg>
+            <span>с теплом,<br>по-честному</span>
+          </div>
+        </div>
+        <div>
+          <p class="script reveal">прозрачно</p>
+          <h2 class="reveal" data-d="1">Куда идут средства?</h2>
+          <div class="funds-legend">
+            <div class="fleg reveal" data-d="1"><span class="fleg-dot" style="--c:#2268b1"></span><div><strong>45% — Адресная помощь</strong><small>продукты, лекарства, оплата лечения и нужд</small></div></div>
+            <div class="fleg reveal" data-d="2"><span class="fleg-dot" style="--c:#de789d"></span><div><strong>30% — Поддержка детей</strong><small>реабилитация, образование, школьные наборы</small></div></div>
+            <div class="fleg reveal" data-d="3"><span class="fleg-dot" style="--c:#5c4875"></span><div><strong>15% — Кризисная помощь</strong><small>временное жильё, срочные закупки</small></div></div>
+            <div class="fleg reveal" data-d="4"><span class="fleg-dot" style="--c:#d4e6ff"></span><div><strong>10% — Административные расходы</strong><small>на связь, банк и развитие фонда</small></div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Контакты -->
+    <section class="sec" id="contacts">
+      <div class="wrap con-wrap">
+        <div class="con-cta reveal">
+          <p class="script">просто позвоните</p>
+          <h2>Если трудно — мы&nbsp;рядом</h2>
+          <a class="con-phone" href="tel:+79196337225">+7 (919) 633-72-25</a>
+          <p class="con-mail"><a href="mailto:ahmadeeva.alina97@gmail.com">ahmadeeva.alina97@gmail.com</a> · ежедневно с&nbsp;9:00 до&nbsp;21:00</p>
+        </div>
+        <div class="con-cards">
+          <div class="con-card reveal" data-d="1">
+            <span class="con-ic"><svg class="ic" aria-hidden="true"><use href="#i-pin"/></svg></span>
+            <strong>Адрес фонда</strong>
+            <p>420043, РТ, г. Казань,<br>ул. Бойничная, д. 5, помещ. 6</p>
+          </div>
+          <div class="con-card reveal" data-d="2">
+            <span class="con-ic"><svg class="ic" aria-hidden="true"><use href="#i-doc"/></svg></span>
+            <strong>Официально</strong>
+            <p>АНО БП «Рука об руку»<br>ОГРН 1251600032870<br>ИНН 1655509496 · КПП 165501001</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="ftr">
+    <div class="wrap ftr-grid">
+      <div class="ftr-brand">
+        <p class="script">рука об руку</p>
+        <p class="ftr-name">АНО БП «Рука об руку»</p>
+        <p class="ftr-desc">Помощь женщинам и детям в трудных и кризисных ситуациях. Казань.</p>
+      </div>
+      <div class="ftr-col">
+        <span>Реквизиты</span>
+        <p>ОГРН 1251600032870<br>ИНН 1655509496 · КПП 165501001<br>420043, РТ, г. Казань, ул. Бойничная, д. 5, помещ. 6<br>Руководитель — А. Г. Ахмадеева</p>
+      </div>
+      <div class="ftr-col">
+        <span>Навигация</span>
+        <a href="#programs">Наши программы</a>
+        <a href="#who">Кому помогаем</a>
+        <a href="#volunteer">Как помочь</a>
+        <a href="#donations">Пожертвования</a>
+      </div>
+      <div class="ftr-col">
+        <span>Связь</span>
+        <a href="tel:+79196337225">+7 (919) 633-72-25</a>
+        <a href="mailto:ahmadeeva.alina97@gmail.com">ahmadeeva.alina97@gmail.com</a>
+        <button class="btn btn-terra js-open-modal">Пожертвовать</button>
+      </div>
+    </div>
+    <div class="wrap ftr-bottom">
+      <span>© АНО БП «Рука об руку»</span>
+      <a href="#top">наверх ↑</a>
+    </div>
+  </footer>
+
+  <!-- Модальное окно пожертвования -->
+  <div class="modal" id="modal" aria-hidden="true">
+    <div class="modal-backdrop js-close-modal"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button class="modal-x js-close-modal" aria-label="Закрыть"><svg class="ic" aria-hidden="true"><use href="#i-close"/></svg></button>
+      <p class="script">спасибо, что вы с нами</p>
+      <h3 id="modal-title">Пожертвовать</h3>
+      <p class="modal-text">Пожертвование принимается банковским переводом по&nbsp;реквизитам организации. Банковские реквизиты и&nbsp;договор пожертвования мы&nbsp;вышлем в&nbsp;ответ на&nbsp;письмо.</p>
+      <div class="modal-req">
+        <div><span>Получатель</span><strong>АНО БП «Рука об руку»</strong></div>
+        <div><span>ОГРН</span><strong>1251600032870</strong></div>
+        <div><span>ИНН / КПП</span><strong>1655509496 / 165501001</strong></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-terra js-copy-all">
+          <svg class="ic" aria-hidden="true"><use href="#i-copy"/></svg>
+          Скопировать реквизиты
+        </button>
+        <a class="btn btn-outline" href="mailto:ahmadeeva.alina97@gmail.com?subject=Пожертвование">Написать на почту</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Иконки -->
+  <svg style="display:none" aria-hidden="true">
+    <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.9-9.3-9.2C1.3 7.4 3.6 4.5 6.8 4.5c2 0 3.6 1.1 5.2 3 1.6-1.9 3.2-3 5.2-3 3.2 0 5.5 2.9 4.1 6.3C19.5 15.1 12 20 12 20z" fill="currentColor"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4 12h15M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M5 15V6a2 2 0 0 1 2-2h9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.1-7-11a7 7 0 0 1 14 0c0 4.9-7 11-7 11z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="1.7"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 12h6M9 16h6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+  </svg>
+
+  <script src="js/main.js"></script>
 </body>
 </html>
