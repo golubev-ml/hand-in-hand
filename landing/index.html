@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Рука об руку — фонд поддержки детей</title>
-  <meta name="description" content="Лендинг фонда АНО БП «Рука об руку». Основной сайт с галереей детских рисунков — hand-in-hand.ru">
+  <meta name="description" content="Лендинг фонда АНО БП «Рука об руку». Благотворительная галерея детских рисунков.">
   <style>
     :root { --green: #4A7C59; --cream: #FEFAF4; --sand: #E8DCC8; --ink: #2C2416; --muted: #6B5B42; }
     * { box-sizing: border-box; }
@@ -33,7 +33,7 @@
     </p>
     <p>
       Галерея с рисунками и оформлением заказа — на основном сайте:
-      <a href="https://hand-in-hand.ru">hand-in-hand.ru</a>
+      <a href="${SITE_URL}">${SITE_HOST}</a>
     </p>
     <div class="contacts">
       Телефон: <a href="tel:+79870072252">+7 (987) 007-22-52</a><br>
@@ -42,5 +42,18 @@
     </div>
     <p class="note">Техническая заглушка: раздел наполняется командой фонда.</p>
   </div>
+  <script>
+    (() => {
+      const id = "${YANDEX_METRIKA_ID}";
+      if (!/^\d+$/.test(id)) return;
+      window.ym = window.ym || function () { (window.ym.a = window.ym.a || []).push(arguments); };
+      window.ym.l = Date.now();
+      const script = document.createElement("script");
+      script.async = true;
+      script.src = "https://mc.yandex.ru/metrika/tag.js";
+      document.head.appendChild(script);
+      window.ym(Number(id), "init", { clickmap: true, trackLinks: true, accurateTrackBounce: true });
+    })();
+  </script>
 </body>
 </html>

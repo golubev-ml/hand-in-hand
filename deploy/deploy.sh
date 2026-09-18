@@ -3,19 +3,28 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR/deploy"
 
-if [ -f .env ]; then
-  set -a
-  . ./.env
-  set +a
-fi
+# Usage: ./deploy/deploy.sh test|prod. The tracked profile contains only public
+# environment-specific values; deploy/.env and deploy/secrets remain local.
+DEPLOY_ENV="${1:-${DEPLOY_ENV:-test}}"
+case "$DEPLOY_ENV" in
+  test|prod) ;;
+  *) echo "Usage: $0 test|prod" >&2; exit 2 ;;
+esac
 
-# HIH-9: лендинг на поддомене раздаёт статику из LANDING_DIR (по умолчанию /root/landing)
-LANDING_DIR="${LANDING_DIR:-/root/landing}"
-mkdir -p "$LANDING_DIR"
-if [ ! -f "$LANDING_DIR/index.html" ]; then
-  echo ">> В $LANDING_DIR нет index.html — кладём placeholder из репозитория"
-  cp "$ROOT_DIR/landing/index.html" "$LANDING_DIR/index.html"
+set -a
+if [ -f .env ]; then
+  . ./.env
 fi
+if [ -f "./secrets/$DEPLOY_ENV.env" ]; then
+  . "./secrets/$DEPLOY_ENV.env"
+fi
+for secret_env in ./secrets/"$DEPLOY_ENV"/*.env; do
+  [ -e "$secret_env" ] && . "$secret_env"
+done
+# Public profile is authoritative for domains, gateway contour and production metric.
+# Variables omitted by it (including the current test metric) keep their local value.
+. "./env/$DEPLOY_ENV.env"
+set +a
 
 echo "[1/5] Starting database..."
 docker compose up -d db
@@ -29,8 +38,8 @@ for i in {1..30}; do
   sleep 2
 done
 
-echo "[2/5] Building images (docker cache)..."
-docker compose build api frontend
+echo "[2/5] Building images for $DEPLOY_ENV (docker cache)..."
+docker compose build api frontend landing
 
 echo "[3/5] Running migrations..."
 docker compose run --rm api sh -c 'cd /app && alembic upgrade head'
@@ -39,9 +48,8 @@ echo "[4/5] Starting api, frontend, landing, traefik..."
 docker compose up -d api frontend landing traefik
 
 echo "[5/5] Waiting for Let's Encrypt + HTTPS..."
-DOMAIN="${DOMAIN:-hand-in-hand.ru}"
-LANDING_DOMAIN="${LANDING_DOMAIN:-hand.hand-in-hand.ru}"
-LEGACY_DOMAIN="${LEGACY_DOMAIN:-hand-in-hand-kzn.ru}"
+DOMAIN="${DOMAIN:-hand-in-hand-kzn.ru}"
+LANDING_DOMAIN="${LANDING_DOMAIN:-hand.hand-in-hand-kzn.ru}"
 
 wait_https() {
   local url="$1"
@@ -57,19 +65,15 @@ wait_https() {
 }
 
 wait_https "https://$DOMAIN/api/health"
-# Первый выпуск сертификатов для трёх хостов может занять время — предупреждаем, но не роняем деплой
 wait_https "https://$DOMAIN/" || echo ">> основной сайт ещё не отвечает: проверьте DNS и логи traefik" >&2
-wait_https "https://$LANDING_DOMAIN/" || echo ">> лендинг ещё не отвечает: проверьте DNS для $LANDING_DIR" >&2
-curl -sf "https://$LEGACY_DOMAIN/api/health" >/dev/null 2>&1 \
-  && echo "HTTPS OK: переходный домен $LEGACY_DOMAIN работает" \
-  || echo ">> переходный домен $LEGACY_DOMAIN пока не отвечает" >&2
+wait_https "https://$LANDING_DOMAIN/landing" || echo ">> лендинг ещё не отвечает: проверьте DNS и логи traefik" >&2
 
 echo ""
 echo "Deployment completed."
 echo "Site:     https://$DOMAIN"
 echo "Admin:    https://$DOMAIN/admin"
 echo "Settings: https://$DOMAIN/admin/settings"
-echo "Landing:  https://$LANDING_DOMAIN  (файлы: $LANDING_DIR)"
+echo "Landing:  https://$LANDING_DOMAIN/landing"
 echo "Docs:     https://$DOMAIN/docs"
 if [ "${APP_ENV:-local}" != "prod" ]; then
   echo "MailHog: http://localhost:9000"

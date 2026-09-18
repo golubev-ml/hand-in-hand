@@ -34,7 +34,7 @@ services:
       EMAIL_ENABLED: ${EMAIL_ENABLED:-true}
       MAIL_FROM: ${MAIL_FROM:-noreply@kraski-detstva.ru}
       # Основной домен: на него строятся returnUrl/failUrl для шлюза Сбера
-      BASE_URL: ${BASE_URL:-https://hand-in-hand.ru}
+      BASE_URL: ${BASE_URL:-https://hand-in-hand-kzn.ru}
       # HIH-9: контур шлюза. Бой — https://securepay.sberbank.ru/ecomm/gateway/api/rest/
       SBER_BASE_URL: ${SBER_BASE_URL:-https://ecomtest.sberbank.ru/ecomm/gateway/api/rest/}
       # Учётные данные шлюза живут в БД (админка /admin/settings); env — только фолбэк
@@ -52,8 +52,8 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=deploy_web"
-      # Основной + переходный старый домен; /payment — маршруты возврата из шлюза
-      - "traefik.http.routers.api.rule=(Host(`${DOMAIN:-hand-in-hand.ru}`) || Host(`${LEGACY_DOMAIN:-hand-in-hand-kzn.ru}`)) && (PathPrefix(`/api`) || PathPrefix(`/payment`) || PathPrefix(`/admin`) || PathPrefix(`/uploads`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`))"
+      # API, админка и возвраты оплаты обслуживаются только доменом окружения.
+      - "traefik.http.routers.api.rule=Host(`${DOMAIN:-hand-in-hand-kzn.ru}`) && (PathPrefix(`/api`) || PathPrefix(`/payment`) || PathPrefix(`/admin`) || PathPrefix(`/uploads`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`))"
       - "traefik.http.routers.api.entrypoints=websecure"
       - "traefik.http.routers.api.tls.certresolver=letsencrypt"
       - "traefik.http.routers.api.priority=100"
@@ -64,34 +64,40 @@ services:
     build:
       context: ..
       dockerfile: deploy/Dockerfile.frontend
+      args:
+        VITE_YANDEX_METRIKA_ID: ${YANDEX_METRIKA_ID:-}
     container_name: hand-in-hand-frontend
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=deploy_web"
-      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-hand-in-hand.ru}`) || Host(`${LEGACY_DOMAIN:-hand-in-hand-kzn.ru}`)"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-hand-in-hand-kzn.ru}`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls.certresolver=letsencrypt"
       - "traefik.http.routers.frontend.priority=50"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
     networks: [web]
 
-  # HIH-9: лендинг-одностраничник на поддомене. Чистая статика, без сборщика:
-  # файлы лежат на сервере в /root/landing (переопределяется LANDING_DIR).
+  # Лендинг доступен на отдельном поддомене только под префиксом /landing.
   landing:
-    image: nginx:1.27-alpine
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.landing
     container_name: hand-in-hand-landing
-    volumes:
-      - ${LANDING_DIR:-/root/landing}:/usr/share/nginx/html:ro
-      - ./nginx-landing.conf:/etc/nginx/conf.d/default.conf:ro
+    environment:
+      SITE_URL: ${SITE_URL:-https://hand-in-hand-kzn.ru}
+      SITE_HOST: ${SITE_HOST:-hand-in-hand-kzn.ru}
+      YANDEX_METRIKA_ID: ${YANDEX_METRIKA_ID:-}
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=deploy_web"
-      - "traefik.http.routers.landing.rule=Host(`${LANDING_DOMAIN:-hand.hand-in-hand.ru}`)"
+      - "traefik.http.routers.landing.rule=Host(`${LANDING_DOMAIN:-hand.hand-in-hand-kzn.ru}`) && PathPrefix(`/landing`)"
       - "traefik.http.routers.landing.entrypoints=websecure"
       - "traefik.http.routers.landing.tls.certresolver=letsencrypt"
       - "traefik.http.routers.landing.priority=50"
+      - "traefik.http.routers.landing.middlewares=landing-strip"
+      - "traefik.http.middlewares.landing-strip.stripprefix.prefixes=/landing"
       - "traefik.http.services.landing.loadbalancer.server.port=80"
     networks: [web]
 
@@ -134,7 +140,7 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.test
     environment:
-      BASE_URL: ${BASE_URL:-https://hand-in-hand.ru}
+      BASE_URL: ${BASE_URL:-https://hand-in-hand-kzn.ru}
       API_URL: http://api:8000
       MAILHOG_URL: http://mailhog:8025
       ADMIN_LOGIN: ${ADMIN_LOGIN:-}
