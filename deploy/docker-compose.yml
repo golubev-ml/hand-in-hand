@@ -112,13 +112,13 @@ services:
       - "9000:8025"
     networks: [internal]
 
-  # ВАЖНО: Docker на серверах требует API >= 1.40. Не возвращать старое значение 1.24.
+  # ВАЖНО: production Docker требует API >= 1.44. Не возвращать старые значения 1.24/1.40.
   traefik:
     image: traefik:v2.11
     container_name: hand-in-hand-traefik
     profiles: ["bundled-proxy"]
     environment:
-      DOCKER_API_VERSION: "1.40"
+      DOCKER_API_VERSION: "1.44"
     command:
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"

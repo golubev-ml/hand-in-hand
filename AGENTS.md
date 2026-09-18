@@ -42,9 +42,9 @@ This project uses **Tailwind CSS v4** through the `@tailwindcss/vite` plugin con
 
 ## Deployment proxy
 
-- The test and production servers require Docker API `1.40` or newer. Keep
-  `DOCKER_API_VERSION: "1.40"` on the bundled Traefik service in
-  `deploy/docker-compose.yml`; never restore the legacy `1.24` value.
+- Production Docker requires API `1.44` or newer. Keep
+  `DOCKER_API_VERSION: "1.44"` on the bundled Traefik service in
+  `deploy/docker-compose.yml`; never restore the legacy `1.24`/`1.40` values.
 - Before changing the Traefik image or Docker API version, check the server's
   minimum API with `docker version`. A running container is not sufficient:
   verify that Traefik has loaded the Docker provider without API-version errors.
