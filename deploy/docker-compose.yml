@@ -109,7 +109,7 @@ services:
       - "9000:8025"
     networks: [internal]
 
-  # ВАЖНО: только traefik v2.11. На сервере старый Docker API (1.24) — v3 не стартует.
+  # ВАЖНО: Docker на серверах требует API >= 1.40. Не возвращать старое значение 1.24.
   traefik:
     image: traefik:v2.11
     container_name: hand-in-hand-traefik
