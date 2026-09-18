@@ -96,8 +96,8 @@ def build_order_html(name: str, items: list[dict], total: float) -> str:
     <div style="border-top:1px solid #E8DCC8;padding-top:16px;font-size:14px;
                 color:#6B5B42;line-height:1.9;">
       Остались вопросы? Мы всегда на связи:<br />
-      Email: ahmadeeva.alina97@gmail.com<br />
-      Телефон: +7 (919) 633-72-25<br />
+      Email: rukaobruku.fond@gmail.com<br />
+      Телефон: +7 (987) 007-22-52<br />
       Адрес: 420043, Республика Татарстан, г Казань, Бойничная ул, д. 5, помещ. 6
     </div>
   </div>

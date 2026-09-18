@@ -39,3 +39,14 @@ This project uses **Tailwind CSS v4** through the `@tailwindcss/vite` plugin con
 - Use double quotes for strings containing apostrophes (`"We're here to help"`), or escape them in single-quoted strings. An unescaped apostrophe in a single-quoted string breaks the build.
 - Ensure JSX tags are closed and braces are balanced.
 - Export components as default exports.
+
+## Deployment proxy
+
+- Production Docker requires API `1.44` or newer. Keep
+  `DOCKER_API_VERSION: "1.44"` on the bundled Traefik service in
+  `deploy/docker-compose.yml`; never restore the legacy `1.24`/`1.40` values.
+- Before changing the Traefik image or Docker API version, check the server's
+  minimum API with `docker version`. A running container is not sufficient:
+  verify that Traefik has loaded the Docker provider without API-version errors.
+- After proxy changes, verify `/`, `/api/health`, `/admin`, and the landing
+  domain over HTTPS and inspect the Traefik logs.

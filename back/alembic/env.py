@@ -9,7 +9,9 @@ from sqlalchemy import engine_from_config, pool
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from database import Base            # noqa: E402
-from models import Donation, Log, Manager, Picture   # noqa: E402,F401
+from models import (                                        # noqa: E402,F401
+    ContactMessage, Donation, Log, Manager, Order, Picture, Setting,
+)
 
 config = context.config
 if config.config_file_name is not None:

@@ -167,8 +167,8 @@ const FOOTER_INFO: Record<string, string[]> = {
     'Дата регистрации: 13.08.2025.',
     'ИНН / КПП: 1655509496 / 165501001.',
     'Юридический адрес: 420043, Республика Татарстан, г Казань, Бойничная ул, д. 5, помещ. 6.',
-    'Телефон: +7 (919) 633-72-25.',
-    'E-mail: ahmadeeva.alina97@gmail.com.',
+    'Телефон: +7 (987) 007-22-52.',
+    'E-mail: rukaobruku.fond@gmail.com.',
   ],
   'Партнёры': ['Мы сотрудничаем с галереями, школами искусства и компаниями, которые поддерживают детское творчество.', 'Раздел наполняется командой фонда.'],
   'Все работы': ['Полная галерея работ наших студий: живопись, рисунки и цифровое искусство.', 'Раздел наполняется командой фонда.'],
@@ -555,8 +555,8 @@ function CheckoutModal({
   onPriceChange: (id: number, price: number) => void
 }) {
   const [step, setStep] = useState<CheckoutStep>('form')
-  const [form, setForm] = useState({ name: '', email: '', phone: '', comment: '' })
-  const [payment, setPayment] = useState<'card' | 'sbp' | 'transfer'>('card')
+  const [form, setForm] = useState({ name: '', email: '', comment: '' })
+  const [payment, setPayment] = useState<'card' | 'sbp' | 'sberpay' | 'mirpay'>('card')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [orderError, setOrderError] = useState('')
@@ -578,7 +578,6 @@ function CheckoutModal({
     const e: Record<string, string> = {}
     if (!form.name.trim()) e.name = 'Введите имя'
     if (!form.email.includes('@')) e.email = 'Введите корректный email'
-    if (!form.phone.trim()) e.phone = 'Введите телефон'
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -605,15 +604,23 @@ function CheckoutModal({
           customer_name: form.name,
           customer_email: form.email,
           items: items_payload,
+          payment_method: payment,
         }),
       })
 
       const data = await response.json()
 
+      // HIH-9: оплата через шлюз — заказ pending, уводим покупателя на страницу банка.
+      // Статус заказа после возврата определит сервер по getOrderStatus.do, не браузер.
+      if (response.ok && data.payment_status === 'pending' && data.payment_url) {
+        window.location.assign(data.payment_url)
+        return
+      }
+
       if (response.ok && data.payment_status === 'paid') {
         setStep('success')
       } else if (response.status === 402 || data.payment_status === 'failed') {
-        setOrderError('Платёж отклонен. Пожалуйста, проверьте номер телефона и попробуйте снова.')
+        setOrderError('Платёж отклонён. Попробуйте другой способ оплаты или свяжитесь с фондом.')
         setStep('payment')
       } else {
         setOrderError(data.detail || 'Произошла ошибка при создании заказа')
@@ -736,7 +743,8 @@ function CheckoutModal({
                   {[
                     { key: 'card' as const, icon: '💳', label: 'Банковская карта', sub: 'Visa, Mastercard, МИР' },
                     { key: 'sbp' as const, icon: '📱', label: 'СБП', sub: 'Система быстрых платежей' },
-                    { key: 'transfer' as const, icon: '🏦', label: 'Банковский перевод', sub: 'По реквизитам фонда' },
+                    { key: 'sberpay' as const, icon: '🟢', label: 'SberPay', sub: 'Оплата в один клик через Сбер ID' },
+                    { key: 'mirpay' as const, icon: '💚', label: 'Mir Pay', sub: 'Кошелёк МИР' },
                   ].map(opt => (
                     <label
                       key={opt.key}
@@ -920,8 +928,8 @@ function ContactSection() {
             </p>
             <div className="space-y-4">
               {[
-                { icon: '📬', label: 'Email', value: 'ahmadeeva.alina97@gmail.com' },
-                { icon: '📞', label: 'Телефон', value: '+7 (919) 633-72-25' },
+                { icon: '📬', label: 'Email', value: 'rukaobruku.fond@gmail.com' },
+                { icon: '📞', label: 'Телефон', value: '+7 (987) 007-22-52' },
                 { icon: '📍', label: 'Адрес', value: '420043, Казань, ул. Бойничная, 5, помещ. 6' },
                 { icon: '🕐', label: 'Режим работы', value: 'Пн–Пт, 10:00–18:00' },
               ].map(c => (
@@ -1006,6 +1014,17 @@ export default function App() {
   const [footerInfo, setFooterInfo] = useState<string | null>(null)
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  // HIH-9: результат возврата из платёжного шлюза (?payment=success|failed|pending|unknown)
+  const [paymentNotice, setPaymentNotice] = useState<string | null>(null)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const result = params.get('payment')
+    if (!result) return
+    setPaymentNotice(result)
+    // чистим адрес, чтобы баннер не показывался при обновлении страницы
+    window.history.replaceState({}, '', window.location.pathname + window.location.hash)
+  }, [])
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 40)
@@ -1085,6 +1104,35 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#FEFAF4]">
+
+      {/* ── Результат возврата из платёжного шлюза (HIH-9) ── */}
+      {paymentNotice && (() => {
+        const copy = {
+          success: { title: 'Оплата прошла — спасибо!', text: 'Заказ принят, письмо с деталями уже летит к вам. Оригиналы рисунков можно распечатать из вложений письма.', tone: '#E8F2EB', accent: '#4A7C59' },
+          failed: { title: 'Оплата не завершена', text: 'Деньги не списаны, картины вернулись в продажу. Попробуйте другой способ оплаты или напишите фонду.', tone: '#FEE2E2', accent: '#991B1B' },
+          pending: { title: 'Платёж обрабатывается', text: 'Банк ещё не подтвердил операцию. Как только подтвердит — заказ станет оплаченным, а мы пришлём письмо.', tone: '#FFF7E0', accent: '#8A6D3B' },
+          unknown: { title: 'Платёж не найден', text: 'Не получилось соотнести возврат с заказом. Напишите нам: rukaobruku.fond@gmail.com или +7 (987) 007-22-52.', tone: '#F5EFE3', accent: '#6B5B42' },
+        }[paymentNotice] ?? {
+          title: 'Возврат из банка', text: 'Статус оплаты уточняется.', tone: '#F5EFE3', accent: '#6B5B42',
+        }
+        return (
+          <div className="relative z-30 mt-16 px-4 pt-4">
+            <div className="max-w-4xl mx-auto rounded-2xl px-5 py-4 flex items-start gap-4 border border-[#E8DCC8]" style={{ background: copy.tone }}>
+              <div className="flex-1">
+                <p className="font-serif font-bold" style={{ color: copy.accent }}>{copy.title}</p>
+                <p className="text-sm text-[#6B5B42] mt-1 leading-relaxed">{copy.text}</p>
+              </div>
+              <button
+                onClick={() => setPaymentNotice(null)}
+                aria-label="Закрыть"
+                className="text-[#6B5B42] hover:text-[#2C2416] px-1"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ── Navigation ── */}
       <nav

@@ -3,13 +3,41 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR/deploy"
 
+# Usage: ./deploy/deploy.sh test|prod. The tracked profile contains only public
+# environment-specific values; deploy/.env and deploy/secrets remain local.
+DEPLOY_ENV="${1:-${DEPLOY_ENV:-test}}"
+case "$DEPLOY_ENV" in
+  test|prod) ;;
+  *) echo "Usage: $0 test|prod" >&2; exit 2 ;;
+esac
+
+set -a
 if [ -f .env ]; then
-  set -a
   . ./.env
-  set +a
+fi
+if [ -f "./secrets/$DEPLOY_ENV.env" ]; then
+  . "./secrets/$DEPLOY_ENV.env"
+fi
+for secret_env in ./secrets/"$DEPLOY_ENV"/*.env; do
+  [ -e "$secret_env" ] && . "$secret_env"
+done
+# Public profile is authoritative for domains, gateway contour and production metric.
+# Variables omitted by it (including the current test metric) keep their local value.
+. "./env/$DEPLOY_ENV.env"
+set +a
+
+TRAEFIK_NETWORK="${TRAEFIK_NETWORK:-deploy_web}"
+if [ "${USE_EXTERNAL_TRAEFIK:-false}" = "true" ]; then
+  docker network inspect "$TRAEFIK_NETWORK" >/dev/null
+  PROXY_ARGS=()
+  PROXY_SERVICES=()
+else
+  docker network inspect "$TRAEFIK_NETWORK" >/dev/null 2>&1 || docker network create "$TRAEFIK_NETWORK" >/dev/null
+  PROXY_ARGS=(--profile bundled-proxy)
+  PROXY_SERVICES=(traefik)
 fi
 
-echo "[1/4] Starting database..."
+echo "[1/5] Starting database..."
 docker compose up -d db
 if [ "${APP_ENV:-local}" != "prod" ]; then
   echo "Starting MailHog for ${APP_ENV:-local} environment..."
@@ -21,35 +49,43 @@ for i in {1..30}; do
   sleep 2
 done
 
-echo "[2/4] Building images (docker cache)..."
-docker compose build api frontend
+echo "[2/5] Building images for $DEPLOY_ENV (docker cache)..."
+docker compose build api frontend landing
 
-echo "[3/4] Running migrations..."
+echo "[3/5] Running migrations..."
 docker compose run --rm api sh -c 'cd /app && alembic upgrade head'
 
-echo "[4/4] Starting api, frontend, traefik..."
-docker compose up -d api frontend traefik
+echo "[4/5] Starting api, frontend, landing, traefik..."
+docker compose "${PROXY_ARGS[@]}" up -d api frontend landing "${PROXY_SERVICES[@]}"
 
-echo "Waiting for Let's Encrypt + HTTPS..."
-https_ready=false
-for i in {1..30}; do
-  if curl -sf https://hand-in-hand-kzn.ru/api/health >/dev/null 2>&1; then
-    echo "HTTPS OK"
-    https_ready=true
-    break
-  fi
-  sleep 5
-done
-if [ "$https_ready" != true ]; then
-  echo "HTTPS did not become ready in time." >&2
-  exit 1
-fi
+echo "[5/5] Waiting for Let's Encrypt + HTTPS..."
+DOMAIN="${DOMAIN:-hand-in-hand-kzn.ru}"
+LANDING_DOMAIN="${LANDING_DOMAIN:-hand.hand-in-hand-kzn.ru}"
+
+wait_https() {
+  local url="$1"
+  for i in {1..30}; do
+    if curl -sf "$url" >/dev/null 2>&1; then
+      echo "HTTPS OK: $url"
+      return 0
+    fi
+    sleep 5
+  done
+  echo "HTTPS не поднялся: $url" >&2
+  return 1
+}
+
+wait_https "https://$DOMAIN/api/health"
+wait_https "https://$DOMAIN/" || echo ">> основной сайт ещё не отвечает: проверьте DNS и логи traefik" >&2
+wait_https "https://$LANDING_DOMAIN/landing" || echo ">> лендинг ещё не отвечает: проверьте DNS и логи traefik" >&2
 
 echo ""
 echo "Deployment completed."
-echo "Site:  https://hand-in-hand-kzn.ru"
-echo "Admin: https://hand-in-hand-kzn.ru/admin"
-echo "Docs:  https://hand-in-hand-kzn.ru/docs"
+echo "Site:     https://$DOMAIN"
+echo "Admin:    https://$DOMAIN/admin"
+echo "Settings: https://$DOMAIN/admin/settings"
+echo "Landing:  https://$LANDING_DOMAIN/landing"
+echo "Docs:     https://$DOMAIN/docs"
 if [ "${APP_ENV:-local}" != "prod" ]; then
   echo "MailHog: http://localhost:9000"
 fi

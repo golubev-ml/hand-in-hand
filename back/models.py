@@ -16,6 +16,20 @@ class Manager(Base):
     created_at = Column(DateTime, default=datetime.now)
 
 
+class Setting(Base):
+    """HIH-9: настройки ключ-значение (флаги и учётные данные платёжного шлюза).
+
+    Значения хранятся здесь, а не в коде: вводятся через админку /admin/settings.
+    В env только фолбэк-значения (см. settings_store.py).
+    """
+    __tablename__ = "settings"
+
+    key = Column(String(100), primary_key=True)             # см. ключи в settings_store.DEFAULTS
+    value = Column(Text, default="")                        # для ключей — секрет, в UI маскируется
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    updated_by = Column(String(50), default="")
+
+
 class Picture(Base):
     """Рисунок: картинка, автор, цена, статус + поля витрины."""
     __tablename__ = "pictures"
@@ -56,8 +70,9 @@ class Order(Base):
     total = Column(Float, nullable=False)
     payment_status = Column(String(20), default="pending")   # paid | failed
     email_status = Column(String(20), default="not_sent")    # sent | failed | not_sent
-    items = Column(JSON, nullable=False)                     # JSON-снапшот: [{title, author, age, price, description}, ...]
+    items = Column(JSON, nullable=False)                     # JSON-снапшот: [{id, title, author, age, price, description}, ...]
     cancelled_at = Column(DateTime, nullable=True)           # HIH-3: отмена заказа
+    sber_order_id = Column(String(64), nullable=True, index=True)  # HIH-9: orderId из ответа шлюза
 
 
 class Donation(Base):
