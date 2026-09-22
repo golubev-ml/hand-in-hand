@@ -14,7 +14,7 @@ from payments import sber  # noqa: E402
 @pytest.fixture(autouse=True)
 def isolated_env(monkeypatch):
     """Тестовый контур, фиксированная учётка и сбор логов вместо БД."""
-    monkeypatch.setenv("SBER_BASE_URL", "https://mock.sber/ecomm/gateway/api/rest/")
+    monkeypatch.setenv("SBER_BASE_URL", "https://mock.sber/ecomm/gw/partner/api/v1/")
     monkeypatch.setenv("BASE_URL", "https://hand-in-hand.ru")
     monkeypatch.setenv("SBER_USER_NAME", "unit-user")
     monkeypatch.setenv("SBER_PASSWORD", "unit-secret-key")
@@ -34,7 +34,7 @@ def gateway(monkeypatch, isolated_env):
     def handler(request: httpx.Request) -> httpx.Response:
         state["requests"].append(request)
         body = dict(httpx.QueryParams(request.url.query)) if request.method == "GET" else \
-            dict(httpx.QueryParams(request.content.decode("utf-8")))
+            json.loads(request.content.decode("utf-8"))
         state.setdefault("bodies", []).append(body)
         reply = state["script"].pop(0) if state["script"] else {"error": "нет смоделированного ответа"}
         if callable(reply):
@@ -57,12 +57,12 @@ def gateway(monkeypatch, isolated_env):
 # ─── вспомогательные функции ──────────────────────────────────────────────────
 
 def test_base_url_uses_env_and_defaults_to_test_contour(monkeypatch):
-    monkeypatch.setenv("SBER_BASE_URL", "https://securepay.sberbank.ru/ecomm/gateway/api/rest/")
-    assert sber.base_url() == "https://securepay.sberbank.ru/ecomm/gateway/api/rest/"
+    monkeypatch.setenv("SBER_BASE_URL", "https://epay.sberbank.ru/ecomm/gw/partner/api/v1/")
+    assert sber.base_url() == "https://epay.sberbank.ru/ecomm/gw/partner/api/v1/"
     monkeypatch.delenv("SBER_BASE_URL")
     assert sber.base_url() == sber.TEST_BASE_URL
     assert sber.TEST_BASE_URL.startswith("https://ecomtest.sberbank.ru/")
-    assert sber.PROD_BASE_URL.startswith("https://securepayments.sberbank.ru/")
+    assert sber.PROD_BASE_URL.startswith("https://epay.sberbank.ru/")
 
 
 @pytest.mark.parametrize("rub,kopecks", [
@@ -130,12 +130,12 @@ def test_create_payment_payload(gateway):
     assert result["payment_url"] == "https://pay.sber/form/1"
     assert result["order_id"] == "100500"
     assert body["orderNumber"] == "42"
-    assert body["amount"] == "250000"                 # копейки
-    assert body["currencyCode"] == "643"
+    assert body["amount"] == 250000                   # копейки
     assert body["returnUrl"] == "https://hand-in-hand.ru/payment/return"
-    assert body["failUrl"] == "https://hand-in-hand.ru/payment/fail"
+    assert body["features"] == "FORCE_SSL"
     assert body["userName"] == "unit-user"
     assert body["password"] == "unit-secret-key"
+    assert "merchantLogin" not in body
     assert "sberbankOnlineAttributes" in body["jsonParams"]
 
 
@@ -176,13 +176,13 @@ def test_zero_error_code_is_success(gateway):
 
 # ─── getOrderStatus.do ────────────────────────────────────────────────────────
 
-def test_get_status_uses_get_and_maps(gateway):
+def test_get_status_uses_post_json_and_maps(gateway):
     gateway["set_responses"]([{"json": {"orderStatus": 2, "orderId": "123", "amount": 50000,
                                         "orderNumber": "12"}}])
     status = sber.get_status(12)
     request = gateway["requests"][-1]
-    assert request.method == "GET"
-    assert request.url.params["orderNumber"] == "12"
+    assert request.method == "POST"
+    assert gateway["last_body"]()["orderNumber"] == "12"
     assert status["status"] == "paid"
     assert status["amount"] == 50000
 
@@ -200,7 +200,7 @@ def test_refund_payload(gateway):
     gateway["set_responses"]([{"json": {"orderId": "1", "refundId": "2"}}])
     sber.refund(12, 2500)
     body = gateway["last_body"]()
-    assert body["amount"] == "250000"
+    assert body["amount"] == 250000
     assert body["newOrderNumber"].startswith("R12")
 
 

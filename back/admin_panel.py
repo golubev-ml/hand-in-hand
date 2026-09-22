@@ -583,10 +583,10 @@ async def contact_status(contact_id: int, request: Request, login: str = Depends
 
 # ---------- настройки (HIH-9) ----------
 TEXT_SETTINGS = (
-    ("sber_user_name", "userName (логин шлюза)", "Используется в register.do/getOrderStatus.do"),
-    ("sber_merchant_login", "merchantLogin", "Не обязательен — шлётся в шлюз, если заполнен"),
-    ("sber_terminal", "Терминал", "Хранится, в шлюз пока не отправляется (уточнить у Сбера)"),
-    ("sber_key_id", "Key ID", "ID ключа подписи, если Сбер потребует проверку подписи"),
+    ("sber_user_name", "userName (API-логин)", "Отдельный для test и prod; обязателен в register.do и проверке статуса"),
+    ("sber_merchant_login", "merchantLogin", "Для прямого протокола не передаётся; нужен только отдельным сервисам управления ключами"),
+    ("sber_terminal", "Терминал", "Справочное поле; в запросы прямого протокола не отправляется"),
+    ("sber_key_id", "Key ID", "Справочное поле для ключа подписи; register.do его не использует"),
 )
 
 
@@ -619,8 +619,8 @@ def settings_page(login: str = Depends(current_admin), db: Session = Depends(get
         <td style="color:#6b7280;font-size:12px">{html.escape(hint)}{' · ' + html.escape(extra) if extra else ''}</td></tr>"""
 
     for key, label, hint in (
-        ("sber_password", "Пароль шлюза", "Передаётся как password в register.do/getOrderStatus.do"),
-        ("sber_key", "Ключ мерчанта (secret)", "Ключ подписи; отдельно от пароля шлюза"),
+        ("sber_password", "Постоянный пароль userName", "Передаётся как password; транспортный пароль на prod сначала нужно сменить в СберБизнес"),
+        ("sber_key", "API key / ключ подписи", "В прямом протоколе register.do не используется; не заменяет пароль userName"),
     ):
         secret = settings_store.get_value(db, key)
         secret_hint = (f"сохранено {settings_store.mask(secret)}" if secret else "не задан") + \
@@ -631,7 +631,7 @@ def settings_page(login: str = Depends(current_admin), db: Session = Depends(get
 
     body = f"""<h2>Настройки</h2>
     <div class="card">
-    <p>Оплата через Сбербанк (ecomtest-контур): {flag_pay}. Письмо после покупки: {flag_mail}.</p>
+    <p>Оплата через Сбербанк ({html.escape(sber_module.base_url())}): {flag_pay}. Письмо после покупки: {flag_mail}.</p>
     {warn}
     <form method="post" action="/admin/settings">
     <p><label><input type="checkbox" name="payments_enabled" {'checked' if pay_on else ''}> Оплата включена

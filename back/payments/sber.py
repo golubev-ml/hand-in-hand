@@ -1,7 +1,7 @@
 """HIH-9: адаптер универсального платёжного шлюза Сбербанка (SberBank ecomm).
 
-Контур по умолчанию — тестовый:  https://ecomtest.sberbank.ru/ecomm/gateway/api/rest/
-Боевой:                            https://securepayments.sberbank.ru/payment/rest/
+Контур по умолчанию — тестовый:  https://ecomtest.sberbank.ru/ecomm/gw/partner/api/v1/
+Боевой:                            https://epay.sberbank.ru/ecomm/gw/partner/api/v1/
 Переключается одной переменной SBER_BASE_URL (она же подменяется моком в тестах).
 
 Соглашения, заложенные в ТЗ и здесь:
@@ -32,8 +32,8 @@ import httpx
 
 import settings_store
 
-TEST_BASE_URL = "https://ecomtest.sberbank.ru/ecomm/gateway/api/rest/"
-PROD_BASE_URL = "https://securepayments.sberbank.ru/payment/rest/"
+TEST_BASE_URL = "https://ecomtest.sberbank.ru/ecomm/gw/partner/api/v1/"
+PROD_BASE_URL = "https://epay.sberbank.ru/ecomm/gw/partner/api/v1/"
 RUSSIAN_TRUSTED_ROOT_CA = Path(__file__).resolve().parents[1] / "certs" / "russian_trusted_root_ca.pem"
 
 CURRENCY_RUB = 643
@@ -172,7 +172,7 @@ def _request(client, http_method: str, url: str, body: dict, endpoint: str, no_r
             if http_method == "GET":
                 resp = client.get(url, params=body)
             else:
-                resp = client.post(url, data=body)
+                resp = client.post(url, json=body)
         except httpx.RequestError as exc:
             if not no_retry and attempts < RETRIES:
                 attempts += 1
@@ -196,8 +196,6 @@ def call(endpoint: str, payload: dict, db=None, http_method: str = "POST", no_re
     """Единственная точка выхода наружу: подставляет учётку, логирует с маскированием."""
     creds = credentials(db)
     body = {"userName": creds["user_name"], "password": creds["password"]}
-    if creds.get("merchant_login"):
-        body["merchantLogin"] = creds["merchant_login"]
     body.update(payload)
 
     url = f"{base_url()}{endpoint}"
@@ -252,11 +250,9 @@ def create_payment(order_number, amount_rub, method: str = "card", db=None,
     payload = {
         "orderNumber": order_number,
         "amount": to_kopecks(amount_rub),
-        "currencyCode": CURRENCY_RUB,
         "returnUrl": return_url or f"{base}/payment/return",
-        "failUrl": fail_url or f"{base}/payment/fail",
-        "description": (description or "Оплата рисунков")[:60],
-        "languageCode": "ru",
+        "features": "FORCE_SSL",
+        "description": (description or "Оплата рисунков").replace("—", "-").replace("«", "").replace("»", "")[:60],
     }
     payload.update(method_attributes(str(method).lower()))
 
@@ -292,8 +288,7 @@ def map_status(order_status) -> str:
 
 def get_status(order_number, db=None) -> dict:
     """getOrderStatus.do — единственное основание менять payment_status заказа."""
-    data = call("getOrderStatus.do", {"orderNumber": str(order_number)},
-                db=db, http_method="GET")
+    data = call("getOrderStatus.do", {"orderNumber": str(order_number)}, db=db)
     err = biz_error(data, "getOrderStatus.do")
     if err:
         raise SberError(err["message"], code=err["code"], endpoint="getOrderStatus.do")
@@ -313,7 +308,7 @@ def refund(order_number, amount_rub, new_order_number=None, db=None) -> dict:
         "orderNumber": str(order_number),
         "newOrderNumber": str(new_order_number or f"R{order_number}"),
         "amount": to_kopecks(amount_rub),
-        "currencyCode": CURRENCY_RUB,
+        "currencyCode": str(CURRENCY_RUB),
     }
     data = call("refund.do", payload, db=db, no_retry=True)
     err = biz_error(data, "refund.do")

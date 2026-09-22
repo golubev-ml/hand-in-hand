@@ -40,7 +40,8 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ## Оплата (HIH-9)
 
 Раздел `/admin/settings`: чекбокс «Оплата включена» (по умолчанию выкл) и учётные данные
-шлюза Сбербанка (ecomtest-контур). Base URL — env `SBER_BASE_URL`. Пока оплата выключена,
+шлюза Сбербанка. Base URL — env `SBER_BASE_URL`; прямой протокол передаёт JSON и не
+использует `merchantLogin` в `register.do`. Пока оплата выключена,
 чекаут работает по старой схеме (заглушка paid). При включённой оплате `POST /api/orders`
 регистрирует платёж и отдаёт `payment_url`, покупатель уходит в шлюз, а статус заказа
 меняется только после `getOrderStatus.do` на маршрутах `/payment/return` и `/payment/fail`.
