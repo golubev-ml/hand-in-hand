@@ -50,3 +50,14 @@ This project uses **Tailwind CSS v4** through the `@tailwindcss/vite` plugin con
   verify that Traefik has loaded the Docker provider without API-version errors.
 - After proxy changes, verify `/`, `/api/health`, `/admin`, and the landing
   domain over HTTPS and inspect the Traefik logs.
+
+## Deployment build cache
+
+- Docker layer cache on the servers is intentional: it preserves the completed
+  `pip install` and `npm ci` layers and makes normal repeat deployments fast.
+  Do not run `docker builder prune -af` or an unscoped Docker cleanup as part
+  of deployment.
+- Before deployment, check free space with `df -h /` and cache usage with
+  `docker system df`. If disk space is genuinely low, inspect candidates first
+  and remove only clearly obsolete images or caches; retain the dependency
+  layers used by `deploy-api` and `deploy-frontend`.
