@@ -28,7 +28,9 @@ REDIRECTS = {
 
 def _find_order(db: Session, params) -> Order | None:
     """Ищем заказ по параметрам возврата. Только поиск — статус решит шлюз."""
-    for name in ("merchantOrderId", "mercahntOrderId", "merchant_order_id", "orderNumber", "orderId"):
+    # Платёжная форма Сбера возвращает ID шлюза как `mdOrder`.
+    # Остальные имена встречаются в разных версиях интеграции и у мерчантов.
+    for name in ("mdOrder", "merchantOrderId", "mercahntOrderId", "merchant_order_id", "orderNumber", "orderId"):
         value = params.get(name)
         if not value:
             continue
@@ -61,7 +63,9 @@ def _handle(request: Request, db: Session, fallback: str):
         return RedirectResponse(REDIRECTS["paid"], status_code=302)
 
     try:
-        status = sber.get_status(order.id, db=db)
+        # Новый JSON-протокол Сбера подтверждает платёж через
+        # getOrderStatusExtended.do по идентификатору шлюза (mdOrder/orderId).
+        status = sber.get_status(order.sber_order_id or order.id, db=db)
     except sber.SberError as exc:
         result = {"status": order.payment_status, "verified": False,
                   "reason": f"шлюз не ответил: {exc}"}

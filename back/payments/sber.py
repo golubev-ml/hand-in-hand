@@ -1,7 +1,7 @@
 """HIH-9: адаптер универсального платёжного шлюза Сбербанка (SberBank ecomm).
 
-Контур по умолчанию — тестовый:  https://ecomtest.sberbank.ru/ecomm/gateway/api/rest/
-Боевой:                            https://securepay.sberbank.ru/ecomm/gateway/api/rest/
+Контур по умолчанию — тестовый:  https://ecomtest.sberbank.ru/ecomm/gw/partner/api/v1/
+Боевой:                            https://epay.sberbank.ru/ecomm/gw/partner/api/v1/
 Переключается одной переменной SBER_BASE_URL (она же подменяется моком в тестах).
 
 Соглашения, заложенные в ТЗ и здесь:
@@ -23,14 +23,18 @@
 import json
 import os
 import re
+import ssl
 import time
+from pathlib import Path
 
+import certifi
 import httpx
 
 import settings_store
 
-TEST_BASE_URL = "https://ecomtest.sberbank.ru/ecomm/gateway/api/rest/"
-PROD_BASE_URL = "https://securepay.sberbank.ru/ecomm/gateway/api/rest/"
+TEST_BASE_URL = "https://ecomtest.sberbank.ru/ecomm/gw/partner/api/v1/"
+PROD_BASE_URL = "https://epay.sberbank.ru/ecomm/gw/partner/api/v1/"
+RUSSIAN_TRUSTED_ROOT_CA = Path(__file__).resolve().parents[1] / "certs" / "russian_trusted_root_ca.pem"
 
 CURRENCY_RUB = 643
 TIMEOUT_SECONDS = float(os.getenv("SBER_TIMEOUT_SECONDS", "15"))
@@ -139,7 +143,12 @@ def log_exchange(text: str, url: str, request: str, response: str) -> None:
 def _client() -> httpx.Client:
     if _transport is not None:
         return httpx.Client(transport=_transport, timeout=TIMEOUT_SECONDS)
-    return httpx.Client(timeout=TIMEOUT_SECONDS, verify=verify_ssl())
+    if not verify_ssl():
+        return httpx.Client(timeout=TIMEOUT_SECONDS, verify=False)
+    context = ssl.create_default_context(cafile=certifi.where())
+    if RUSSIAN_TRUSTED_ROOT_CA.exists():
+        context.load_verify_locations(cafile=RUSSIAN_TRUSTED_ROOT_CA)
+    return httpx.Client(timeout=TIMEOUT_SECONDS, verify=context)
 
 
 def _decode(data: bytes, endpoint: str):
@@ -163,7 +172,7 @@ def _request(client, http_method: str, url: str, body: dict, endpoint: str, no_r
             if http_method == "GET":
                 resp = client.get(url, params=body)
             else:
-                resp = client.post(url, data=body)
+                resp = client.post(url, json=body)
         except httpx.RequestError as exc:
             if not no_retry and attempts < RETRIES:
                 attempts += 1
@@ -187,8 +196,6 @@ def call(endpoint: str, payload: dict, db=None, http_method: str = "POST", no_re
     """Единственная точка выхода наружу: подставляет учётку, логирует с маскированием."""
     creds = credentials(db)
     body = {"userName": creds["user_name"], "password": creds["password"]}
-    if creds.get("merchant_login"):
-        body["merchantLogin"] = creds["merchant_login"]
     body.update(payload)
 
     url = f"{base_url()}{endpoint}"
@@ -243,11 +250,9 @@ def create_payment(order_number, amount_rub, method: str = "card", db=None,
     payload = {
         "orderNumber": order_number,
         "amount": to_kopecks(amount_rub),
-        "currencyCode": CURRENCY_RUB,
         "returnUrl": return_url or f"{base}/payment/return",
-        "failUrl": fail_url or f"{base}/payment/fail",
-        "description": (description or "Оплата рисунков")[:60],
-        "languageCode": "ru",
+        "features": "FORCE_SSL",
+        "description": (description or "Оплата рисунков").replace("—", "-").replace("«", "").replace("»", "")[:60],
     }
     payload.update(method_attributes(str(method).lower()))
 
@@ -281,13 +286,19 @@ def map_status(order_status) -> str:
     return "pending"
 
 
-def get_status(order_number, db=None) -> dict:
-    """getOrderStatus.do — единственное основание менять payment_status заказа."""
-    data = call("getOrderStatus.do", {"orderNumber": str(order_number)},
-                db=db, http_method="GET")
-    err = biz_error(data, "getOrderStatus.do")
+def get_status(order_id, db=None) -> dict:
+    """Подтверждает оплату через JSON-метод getOrderStatusExtended.do.
+
+    Для текущего API Сбера нужен ``orderId`` — UUID, полученный в ``register.do``
+    и возвращаемый платёжной формой как ``mdOrder``. Числовой ``orderNumber``
+    оставлен как безопасный запасной вариант для заказов, созданных до этого поля.
+    """
+    value = str(order_id)
+    key = "orderId" if re.fullmatch(r"[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}", value) else "orderNumber"
+    data = call("getOrderStatusExtended.do", {key: value}, db=db)
+    err = biz_error(data, "getOrderStatusExtended.do")
     if err:
-        raise SberError(err["message"], code=err["code"], endpoint="getOrderStatus.do")
+        raise SberError(err["message"], code=err["code"], endpoint="getOrderStatusExtended.do")
     return {
         "status": map_status(data.get("orderStatus")),
         "order_status": data.get("orderStatus"),
@@ -304,7 +315,7 @@ def refund(order_number, amount_rub, new_order_number=None, db=None) -> dict:
         "orderNumber": str(order_number),
         "newOrderNumber": str(new_order_number or f"R{order_number}"),
         "amount": to_kopecks(amount_rub),
-        "currencyCode": CURRENCY_RUB,
+        "currencyCode": str(CURRENCY_RUB),
     }
     data = call("refund.do", payload, db=db, no_retry=True)
     err = biz_error(data, "refund.do")
