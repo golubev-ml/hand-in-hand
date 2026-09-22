@@ -286,12 +286,19 @@ def map_status(order_status) -> str:
     return "pending"
 
 
-def get_status(order_number, db=None) -> dict:
-    """getOrderStatus.do — единственное основание менять payment_status заказа."""
-    data = call("getOrderStatus.do", {"orderNumber": str(order_number)}, db=db)
-    err = biz_error(data, "getOrderStatus.do")
+def get_status(order_id, db=None) -> dict:
+    """Подтверждает оплату через JSON-метод getOrderStatusExtended.do.
+
+    Для текущего API Сбера нужен ``orderId`` — UUID, полученный в ``register.do``
+    и возвращаемый платёжной формой как ``mdOrder``. Числовой ``orderNumber``
+    оставлен как безопасный запасной вариант для заказов, созданных до этого поля.
+    """
+    value = str(order_id)
+    key = "orderId" if re.fullmatch(r"[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}", value) else "orderNumber"
+    data = call("getOrderStatusExtended.do", {key: value}, db=db)
+    err = biz_error(data, "getOrderStatusExtended.do")
     if err:
-        raise SberError(err["message"], code=err["code"], endpoint="getOrderStatus.do")
+        raise SberError(err["message"], code=err["code"], endpoint="getOrderStatusExtended.do")
     return {
         "status": map_status(data.get("orderStatus")),
         "order_status": data.get("orderStatus"),
