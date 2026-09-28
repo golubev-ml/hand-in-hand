@@ -154,7 +154,23 @@ function fmt(p: number) {
 }
 
 function scrollTo(id: string) {
+  // Единая точка всей навигации по секциям — здесь и считаем цель nav_click.
+  // Имя и параметр совпадают с лендингом (landing/js/main.js), чтобы в кабинете
+  // Метрики настраивать один и тот же набор целей для обоих сайтов.
+  ymGoal('nav_click', { section: '#' + id })
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
+}
+
+/**
+ * Цель Яндекс.Метрики. Счётчик инициализируется в index.html (id приходит из
+ * VITE_YANDEX_METRIKA_ID), поэтому здесь только отправляем; если счётчика нет
+ * (adblock, id не задан для этого контура) — молча пропускаем.
+ */
+function ymGoal(name: string, params?: Record<string, string | number>) {
+  try {
+    const id = Number((window as any).YM_ID || 0)
+    if (id && typeof window.ym === 'function') window.ym(id, 'reachGoal', name, params)
+  } catch { /* noop */ }
 }
 
 const FOOTER_INFO: Record<string, string[]> = {
@@ -611,6 +627,11 @@ function CheckoutModal({
 
       const data = await response.json()
 
+      // Заказ создан сервером — это и есть «начало оплаты» (та же цель, что на лендинге)
+      if (response.ok && data.order_id) {
+        ymGoal('pay_create', { method: payment, amount: total })
+      }
+
       // HIH-9: оплата через шлюз — заказ pending, уводим покупателя на страницу банка.
       // Статус заказа после возврата определит сервер по getOrderStatus.do, не браузер.
       if (response.ok && data.payment_status === 'pending' && data.payment_url) {
@@ -619,6 +640,7 @@ function CheckoutModal({
       }
 
       if (response.ok && data.payment_status === 'paid') {
+        ymGoal('pay_success')
         setStep('success')
       } else if (response.status === 402 || data.payment_status === 'failed') {
         setOrderError('Платёж отклонён. Попробуйте другой способ оплаты или свяжитесь с фондом.')
@@ -816,6 +838,7 @@ function DonationSection() {
 
   function handleDonate() {
     if (finalAmount > 0) {
+      ymGoal('donate_click', { amount: finalAmount })
       setDonated(true)
       setTimeout(() => setDonated(false), 3000)
     }
@@ -1171,6 +1194,8 @@ export default function App() {
     const result = params.get('payment')
     if (!result) return
     setPaymentNotice(result)
+    // Оплата подтверждена сервером (getOrderStatus.do) и оформлена как success → цель
+    if (result === 'success') ymGoal('pay_success')
     // чистим адрес, чтобы баннер не показывался при обновлении страницы
     window.history.replaceState({}, '', window.location.pathname + window.location.hash)
   }, [])

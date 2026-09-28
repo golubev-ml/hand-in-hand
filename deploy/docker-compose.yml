@@ -69,7 +69,8 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.frontend
       args:
-        VITE_YANDEX_METRIKA_ID: ${YANDEX_METRIKA_ID:-}
+        # METRIKA_ID — короткое имя из ТЗ, YANDEX_METRIKA_ID — штатное; приоритет у первого
+        VITE_YANDEX_METRIKA_ID: ${METRIKA_ID:-${YANDEX_METRIKA_ID:-}}
         # домен для текстов-ссылок (условия использования); берётся из env-профиля
         VITE_SITE_HOST: ${SITE_HOST:-}
         # адрес лендинга для плашки «Галерея → Лендинг»
@@ -96,7 +97,8 @@ services:
     environment:
       SITE_URL: ${SITE_URL:-https://hand-in-hand-kzn.ru}
       SITE_HOST: ${SITE_HOST:-hand-in-hand-kzn.ru}
-      YANDEX_METRIKA_ID: ${YANDEX_METRIKA_ID:-}
+      # тот же алиас METRIKA_ID, что и для фронтенда: nginx подставит его в index.html
+      YANDEX_METRIKA_ID: ${METRIKA_ID:-${YANDEX_METRIKA_ID:-}}
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=${TRAEFIK_NETWORK:-deploy_web}"
