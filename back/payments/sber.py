@@ -24,6 +24,7 @@ import json
 import os
 import re
 import time
+from urllib.parse import urlparse
 
 import httpx
 
@@ -37,10 +38,30 @@ TIMEOUT_SECONDS = float(os.getenv("SBER_TIMEOUT_SECONDS", "15"))
 RETRIES = int(os.getenv("SBER_RETRIES", "3"))
 
 
-def verify_ssl() -> bool:
-    """TLS verification may be disabled only for Sber's test contour."""
+def verify_ssl():
+    """Куда httpx смотреть на сертификат шлюза.
+
+    true (по умолчанию) — системный bundle; false — только для тестового контура;
+    SBER_CA_BUNDLE=/path/ca.pem — свой bundle (например, корневой сертификат,
+    который требует Сбер на бою, если его нет в системном хранилище контейнера).
+    """
     raw = os.getenv("SBER_VERIFY_SSL", "true").strip().lower()
-    return raw not in {"0", "false", "no", "off"}
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    bundle = os.getenv("SBER_CA_BUNDLE", "").strip()
+    if bundle and os.path.exists(bundle):
+        return bundle
+    return True
+
+
+def contour() -> str:
+    """'prod' | 'test' | 'custom' — по хосту базового URL."""
+    host = urlparse(base_url()).hostname or ""
+    if host.startswith("securepay."):
+        return "prod"
+    if host.startswith("ecomtest."):
+        return "test"
+    return "custom"
 
 # Способы оплаты, которые умеем регистрировать (WEB-канал).
 METHODS = ("card", "sbp", "sberpay", "mirpay")
@@ -62,20 +83,30 @@ _transport = None
 
 
 class SberError(Exception):
-    """Ошибка шлюза или транспорта. endpoint/code — для разбора вызывающим кодом."""
+    """Ошибка шлюза или транспорта. endpoint/code — для разбора вызывающим кодом.
 
-    def __init__(self, message, code=None, endpoint=None, status=None):
+    tls=True — не прошёл контроль сертификата: это не «неверный пароль», и чинится
+    установкой корневого сертификата, а не перебором учётных данных.
+    """
+
+    def __init__(self, message, code=None, endpoint=None, status=None, tls=False):
         super().__init__(message)
         self.code = code
         self.endpoint = endpoint
         self.status = status
+        self.tls = tls
 
 
 # ─── конфигурация и учётные данные ────────────────────────────────────────────
 
 def base_url() -> str:
-    """Базовый URL шлюза. env SBER_BASE_URL (для мока/продa), иначе тестовый контур."""
-    return (os.getenv("SBER_BASE_URL") or TEST_BASE_URL).strip()
+    """Базовый URL шлюза.
+
+    Читаем и SBER_BASE_URL (наше штатное имя), и SBER_API_URL — в документации Сбера
+    и в чужих .env чаще встречается второе; молча его игнорировать означало бы
+    уходить на тестовый контур, думая, что выбран боевой.
+    """
+    return (os.getenv("SBER_BASE_URL") or os.getenv("SBER_API_URL") or TEST_BASE_URL).strip()
 
 
 def credentials(db=None) -> dict:
@@ -84,6 +115,69 @@ def credentials(db=None) -> dict:
 
 def is_configured(db=None) -> bool:
     return settings_store.is_configured(db)
+
+
+def describe(db=None, creds=None) -> str:
+    """Контекст запроса для лога и админки: куда идём и под кем. Пароля здесь нет."""
+    creds = creds or credentials(db)
+    verify = verify_ssl()
+    verify_note = ("false — только для тестового контура" if verify is False
+                   else f"свой bundle: {verify}" if isinstance(verify, str) else "системный bundle")
+    src = settings_store.sources(db)
+    return (f"contour={contour()} endpoint={base_url()} userName={creds['user_name'] or '—'} "
+            f"merchantLogin={creds['merchant_login'] or '—'} terminal={creds['terminal'] or '—'} "
+            f"keyId={creds['key_id'] or '—'} verify_ssl={verify_note} "
+            f"userName из={src.get('sber_user_name', '?')} password из={src.get('sber_password', '?')}")
+
+
+# Признаки того, что шлюз ругается именно на учётные данные (а не на несуществующий заказ).
+AUTH_HINTS = ("парол", "password", "аутент", "не авториз", "unauthoriz", "access denied",
+              "incorrect", "invalid user", "неверн", "forbidden")
+
+
+def diagnose(db=None) -> dict:
+    """Проверка доступа к шлюзу БЕЗ создания платежа.
+
+    Дёргаем getOrderStatus.do с заведомо несуществующим номером: при верной учётке
+    шлюз отвечает бизнес-ошибкой «заказ не найден», при неверной — ошибкой
+    аутентификации. Так можно отличить «сертификат», «сеть» и «пароль не подходит».
+    """
+    creds = credentials(db)
+    info = {
+        "contour": contour(), "base_url": base_url(), "context": describe(db, creds),
+        "configured": bool(creds["user_name"] and creds["password"]),
+        "ok": False, "kind": "", "detail": "", "warnings": settings_store.warnings(db),
+    }
+    if not info["configured"]:
+        info.update(kind="no_credentials", detail="userName или password не заданы ни в БД, ни в env")
+        return info
+
+    probe = f"HIH-DIAGNOSTIC-{int(time.time())}"
+    try:
+        data = call("getOrderStatus.do", {"orderNumber": probe},
+                    db=db, http_method="GET", no_retry=True)
+    except SberError as exc:
+        text = str(exc).lower()
+        info["detail"] = str(exc)[:500]
+        info["kind"] = ("tls" if exc.tls
+                        else "auth" if any(h in text for h in AUTH_HINTS)
+                        else "transport")
+        return info
+
+    err = biz_error(data, "getOrderStatus.do")
+    code = (err or {}).get("code", "")
+    message = (err or {}).get("message", "")
+    info["errorCode"] = code
+    info["detail"] = f"errorCode={code or '—'} {message or 'без сообщения'}"[:500]
+    if not err:
+        info.update(ok=True, kind="answered", detail="шлюз ответил без ошибки — доступ есть")
+    elif any(h in message.lower() for h in AUTH_HINTS):
+        info["kind"] = "auth"
+        info["detail"] += " — похоже на неверные учётные данные этого контура"
+    else:
+        info.update(ok=True, kind="answered",
+                    detail=info["detail"] + " — шлюз отвечает и пускает по учётке (ошибка по существу запроса)")
+    return info
 
 
 def method_attributes(method: str) -> dict:
@@ -142,6 +236,36 @@ def _client() -> httpx.Client:
     return httpx.Client(timeout=TIMEOUT_SECONDS, verify=verify_ssl())
 
 
+TLS_MARKERS = ("certificate verify failed", "unable to get local issuer certificate",
+               "cert_verify_failed", "sslcertverificationerror", "certificate_expired",
+               "self signed certificate", "ssl certificate")
+
+
+def tls_details(exc: BaseException) -> str:
+    """Текст ошибки всей цепочки причин (OpenSSL ругательство живёт в __cause__/context)."""
+    parts, seen = [], 0
+    while exc is not None and seen < 6:
+        parts.append(f"{type(exc).__name__}: {exc}")
+        exc = exc.__cause__ or exc.__context__
+        seen += 1
+    return " <- ".join(parts)
+
+
+def looks_like_tls_failure(exc: BaseException) -> bool:
+    return any(marker in tls_details(exc).lower() for marker in TLS_MARKERS)
+
+
+def tls_error(endpoint: str, exc: BaseException) -> SberError:
+    return SberError(
+        f"{endpoint}: TLS-рукопожатие не прошло ({tls_details(exc)[:300]}). "
+        "Обычно это значит, что в контейнере api нет корневого сертификата, которым выдан "
+        "сертификат шлюза. Варианты: положить корневой сертификат в образ "
+        "(deploy/certs + update-ca-certificates), указать файл через SBER_CA_BUNDLE, "
+        "либо отключить проверку ТОЛЬКО на тестовом контуре (SBER_VERIFY_SSL=false).",
+        endpoint=endpoint, tls=True,
+    )
+
+
 def _decode(data: bytes, endpoint: str):
     if not data:
         return {}
@@ -165,11 +289,16 @@ def _request(client, http_method: str, url: str, body: dict, endpoint: str, no_r
             else:
                 resp = client.post(url, data=body)
         except httpx.RequestError as exc:
+            # Сертификат сам собой не появится: ретраить бессмысленно, а 3 повтора
+            # превращают диагностику в минуту молчания.
+            if looks_like_tls_failure(exc):
+                raise tls_error(endpoint, exc) from exc
             if not no_retry and attempts < RETRIES:
                 attempts += 1
                 time.sleep(min(0.5 * 2 ** attempts, 4))
                 continue
-            raise SberError(f"{endpoint}: сетевая ошибка {type(exc).__name__}", endpoint=endpoint) from exc
+            raise SberError(f"{endpoint}: сетевая ошибка {type(exc).__name__}: {exc}",
+                            endpoint=endpoint) from exc
 
         if resp.status_code in (408, 429) or resp.status_code >= 500:
             if not no_retry and attempts < RETRIES:
@@ -194,16 +323,28 @@ def call(endpoint: str, payload: dict, db=None, http_method: str = "POST", no_re
     url = f"{base_url()}{endpoint}"
     safe_request = dump_for_log(body)
     started = time.monotonic()
+    context = describe(db, creds)
 
-    with _client() as client:
-        resp = _request(client, http_method, url, body, endpoint, no_retry)
+    try:
+        with _client() as client:
+            resp = _request(client, http_method, url, body, endpoint, no_retry)
+    except SberError as exc:
+        # Неудачу тоже пишем в Log: иначе «оплата не работает» невозможно разобрать
+        # по истории, и остаётся только воспроизводить вслепую.
+        log_exchange(
+            text=f"SBER {exc.endpoint or endpoint} → СБОЙ {type(exc).__name__}",
+            url=url,
+            request=context,
+            response=str(exc)[:2000],
+        )
+        raise
 
     data = _decode(resp.content, endpoint)
     elapsed_ms = int((time.monotonic() - started) * 1000)
     log_exchange(
         text=f"SBER {endpoint} → HTTP {resp.status_code} ({elapsed_ms} мс)",
         url=url,
-        request=safe_request,
+        request=f"{context} || body={safe_request}",
         response=dump_for_log(data),
     )
     return data
