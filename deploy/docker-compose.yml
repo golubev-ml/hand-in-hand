@@ -35,6 +35,10 @@ services:
       MAIL_FROM: ${MAIL_FROM:-noreply@kraski-detstva.ru}
       # Основной домен: на него строятся returnUrl/failUrl для шлюза Сбера
       BASE_URL: ${BASE_URL:-https://hand-in-hand-kzn.ru}
+      # Карусель на лендинге читает GET /api/pictures с другого поддомена,
+      # поэтому оба домена окружения должны быть в allow-ориджинах.
+      # (Сами картинки грузятся тегом <img> и CORS не требуют.)
+      CORS_ORIGINS: ${SITE_URL:-https://hand-in-hand-kzn.ru},https://${LANDING_DOMAIN:-hand.hand-in-hand-kzn.ru}
       # HIH-9: контур шлюза. Бой — https://securepay.sberbank.ru/ecomm/gateway/api/rest/
       SBER_BASE_URL: ${SBER_BASE_URL:-https://ecomtest.sberbank.ru/ecomm/gateway/api/rest/}
       # Учётные данные шлюза живут в БД (админка /admin/settings); env — только фолбэк
@@ -68,6 +72,8 @@ services:
         VITE_YANDEX_METRIKA_ID: ${YANDEX_METRIKA_ID:-}
         # домен для текстов-ссылок (условия использования); берётся из env-профиля
         VITE_SITE_HOST: ${SITE_HOST:-}
+        # адрес лендинга для плашки «Галерея → Лендинг»
+        VITE_LANDING_URL: https://${LANDING_DOMAIN:-hand.hand-in-hand-kzn.ru}
     container_name: hand-in-hand-frontend
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro

@@ -1033,6 +1033,37 @@ export function renderTerms(host: string): string {
   return termsTemplate.replace(/^\s*<!--[\s\S]*?-->/, '').split('{{DOMAIN}}').join(host)
 }
 
+/**
+ * Адрес лендинга. Домен не зашит: берём VITE_LANDING_URL из env-профиля деплоя,
+ * а если он пустой — выводим из хоста галереи (лендинг живёт на hand.<домен>).
+ */
+export function landingUrl(): string {
+  const fromEnv = (import.meta.env.VITE_LANDING_URL ?? '').toString().trim()
+  if (fromEnv) return fromEnv.replace(/\/+$/, '')
+  return `${window.location.protocol}//hand.${siteHost()}`
+}
+
+/** Плашка «Галерея → Лендинг»: та же идея и тот же слоган, что на лендинге. */
+function CrossLinkPlate() {
+  return (
+    <a
+      href={landingUrl()}
+      className="mt-8 flex max-w-xl flex-wrap items-center gap-4 rounded-2xl border-l-[5px] border-[#2268b1] bg-[#FBF3EA] px-4 py-4 text-[#2C2416] shadow-lg shadow-black/20 transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#de789d]"
+    >
+      <span aria-hidden="true" className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#2268b1] to-[#de789d] text-lg text-white">♥</span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <strong className="font-serif text-lg font-normal leading-tight text-[#2268b1]">Искусство, которое лечит</strong>
+        <span className="text-[13px] leading-snug text-[#6B5B42]">
+          История фонда «Рука об руку», программы и отчёты&nbsp;— на основной странице
+        </span>
+      </span>
+      <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-[#4A7C59] px-4 py-2 text-sm font-semibold text-white transition-colors group-hover:bg-[#3D6649]">
+        На сайт фонда <span aria-hidden="true">→</span>
+      </span>
+    </a>
+  )
+}
+
 function CookieBanner() {
   const [visible, setVisible] = useState(false)
 
@@ -1383,6 +1414,9 @@ export default function App() {
                 О фонде
               </button>
             </div>
+
+            {/* Плашка перехода на лендинг фонда (адрес — из env, не хардкод) */}
+            <CrossLinkPlate />
           </div>
         </div>
 
