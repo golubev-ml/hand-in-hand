@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import termsTemplate from '../../legal/terms.ru.html?raw'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -995,6 +996,114 @@ function ContactSection() {
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 
+// ─── Legal: условия использования и cookies ────────────────────────────────
+//
+// Текст один на лендинг и галерею — он живёт в legal/terms.ru.html и собирается
+// в страницу условий лендинга на этапе build (deploy/Dockerfile.landing).
+// Домен нигде не зашит: берётся из VITE_SITE_HOST (env-профиль деплоя), а если
+// он не задан — из hostname открытой страницы.
+
+const LEGAL_CSS = `
+  .legal { color:#2C2416; line-height:1.65; }
+  .legal h1 { font-size:clamp(1.75rem,4vw,2.5rem); line-height:1.2; margin:0 0 .75rem; }
+  .legal h2 { font-size:1.25rem; margin:2.25rem 0 .75rem; color:#2268b1; }
+  .legal p, .legal li { line-height:1.65; }
+  .legal ul { margin:0 0 1rem; padding-left:1.25rem; }
+  .legal li { margin-bottom:.35rem; }
+  .legal .legal-list-plain { list-style:none; padding-left:0; }
+  .legal-meta { color:#6B5B42; font-size:.95rem; margin-bottom:1.25rem; }
+  .legal-lead { background:#fff; border-left:4px solid #de789d; border-radius:10px; padding:1rem 1.15rem; font-weight:600; }
+  .legal-nav { display:flex; flex-wrap:wrap; gap:.5rem; margin:1.5rem 0 0; padding:0; list-style:none; }
+  .legal-nav a { display:inline-block; background:#fff; border:1px solid rgba(34,104,177,.18); border-radius:999px; padding:.35rem .7rem; font-size:.85rem; color:#2268b1; text-decoration:none; }
+  .legal-nav a:hover { background:#2268b1; color:#fff; }
+  .legal a { color:#2268b1; }
+  .legal-ref, .legal a { word-break:break-word; }
+  .legal code { background:rgba(34,104,177,.08); border-radius:4px; padding:.05rem .3rem; }
+`
+
+/** Хост для текстов и ссылок: env сборки → hostname страницы → localhost. */
+export function siteHost(): string {
+  const fromEnv = (import.meta.env.VITE_SITE_HOST ?? '').toString().trim()
+  if (fromEnv) return fromEnv
+  return typeof window !== 'undefined' && window.location.hostname ? window.location.hostname : 'localhost'
+}
+
+/** Шаблон → HTML: служебный комментарий вырезается, {{DOMAIN}} подставляется. */
+export function renderTerms(host: string): string {
+  return termsTemplate.replace(/^\s*<!--[\s\S]*?-->/, '').split('{{DOMAIN}}').join(host)
+}
+
+function CookieBanner() {
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    let stored: string | null = null
+    try { stored = window.localStorage.getItem('cookieConsent') } catch { stored = null }
+    setVisible(stored !== 'true')
+  }, [])
+
+  if (!visible) return null
+
+  function accept() {
+    // localStorage может быть недоступен (приватный режим) — тогда просто скрываем
+    try { window.localStorage.setItem('cookieConsent', 'true') } catch { /* noop */ }
+    setVisible(false)
+  }
+
+  return (
+    <div
+      role="dialog"
+      aria-label="Использование cookies"
+      className="fixed inset-x-0 bottom-0 z-50 border-t-2 border-[#2268b1] bg-[#FBF3EA]/95 px-4 py-3 text-[#2C2416] shadow-[0_-6px_24px_rgba(43,33,24,0.10)] backdrop-blur"
+    >
+      <div className="mx-auto flex max-w-5xl flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+        <p className="flex-1 text-sm leading-relaxed">
+          Мы используем cookies и Яндекс.Метрику, чтобы сайт работал корректно и становился удобнее.
+          Продолжая пользоваться сайтом, вы соглашаетесь с{' '}
+          <a href="/terms" className="font-semibold text-[#2268b1] underline decoration-[#de789d] underline-offset-2 hover:opacity-80">
+            Условиями использования
+          </a>.
+        </p>
+        <button
+          type="button"
+          onClick={accept}
+          className="shrink-0 cursor-pointer rounded-full bg-[#2268b1] px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#1b548f] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#de789d]"
+        >
+          Принять
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function TermsPage() {
+  const html = useMemo(() => renderTerms(siteHost()), [])
+
+  return (
+    <div className="min-h-screen bg-[#FBF3EA]">
+      <style>{LEGAL_CSS}</style>
+      <main className="mx-auto max-w-3xl px-5 py-10 sm:px-6">
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
+          <a href="/" className="font-semibold text-[#2268b1] hover:underline">← На главную</a>
+          <span className="text-sm text-[#6B5B42]">АНО БП «Рука об руку»</span>
+        </div>
+
+        <div dangerouslySetInnerHTML={{ __html: html }} />
+
+        <footer className="mt-12 border-t border-[#2C2416]/10 pt-5 text-sm text-[#6B5B42]">
+          <p>
+            Вопросы по условиям:{' '}
+            <a href="mailto:rukaobruku.fond@gmail.com" className="text-[#2268b1] hover:underline">rukaobruku.fond@gmail.com</a>,{' '}
+            телефон <a href="tel:+79870072252" className="text-[#2268b1] hover:underline">+7 (987) 007-22-52</a>.
+          </p>
+          <p className="mt-1">© АНО БП «Рука об руку», ОГРН 1251600032870, ИНН 1655509496</p>
+        </footer>
+      </main>
+      <CookieBanner />
+    </div>
+  )
+}
+
 export default function App() {
   const [artworks, setArtworks] = useState<Artwork[]>(ARTWORKS)
   const [cart, setCart] = useState<CartItem[]>([])
@@ -1016,6 +1125,15 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   // HIH-9: результат возврата из платёжного шлюза (?payment=success|failed|pending|unknown)
   const [paymentNotice, setPaymentNotice] = useState<string | null>(null)
+  // Страница «Условия использования»: /terms отдаёт этот же SPA (nginx/FastAPI
+  // отдают index.html на любой путь), поэтому маршрут разбираем на клиенте.
+  const [pathname, setPathname] = useState(() => window.location.pathname)
+
+  useEffect(() => {
+    const onPopState = () => setPathname(window.location.pathname)
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -1101,6 +1219,9 @@ export default function App() {
     })
 
   const featured = artworks.filter(a => a.isFeatured).slice(0, 3)
+
+  // Единственный ранний выход: все хуки выше уже отработали.
+  if (/^\/terms\/?$/.test(pathname)) return <TermsPage />
 
   return (
     <div className="min-h-screen bg-[#FEFAF4]">
@@ -1450,10 +1571,16 @@ export default function App() {
           </div>
           <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-[#6B5B42] text-xs">© 2026 АНО БП «Рука об руку». Все права защищены.</p>
-            <p className="text-[#6B5B42] text-xs">ИНН 1655509496 · ОГРН 1251600032870</p>
+            <div className="flex items-center gap-4">
+              <a href="/terms" className="text-[#A89070] text-xs hover:text-white transition-colors">Условия использования</a>
+              <p className="text-[#6B5B42] text-xs">ИНН 1655509496 · ОГРН 1251600032870</p>
+            </div>
           </div>
         </div>
       </footer>
+
+      {/* Баннер про cookies: показывается один раз, согласие — в localStorage */}
+      <CookieBanner />
 
       {/* ── Footer info modal ── */}
       {footerInfo && (
