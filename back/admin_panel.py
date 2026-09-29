@@ -5,6 +5,7 @@ import math
 import os
 import uuid
 from pathlib import Path
+from urllib.parse import quote
 from PIL import Image
 
 from datetime import datetime
@@ -604,7 +605,7 @@ def _env_hint(key: str) -> str:
 
 
 @router.get("/settings", response_class=HTMLResponse)
-def settings_page(login: str = Depends(current_admin), db: Session = Depends(get_db)):
+def settings_page(request: Request, login: str = Depends(current_admin), db: Session = Depends(get_db)):
     pay_on = settings_store.get_bool(db, "payments_enabled")
     mail_on = settings_store.get_bool(db, "email_after_purchase")
     configured = settings_store.is_configured(db)
@@ -618,26 +619,47 @@ def settings_page(login: str = Depends(current_admin), db: Session = Depends(get
 
     rows = ""
     for key, label, hint in TEXT_SETTINGS:
-        value = html.escape(settings_store.get_value(db, key))
-        extra = _env_hint(key)
+        value, source = settings_store.resolve(db, key)
         rows += f"""<tr><td>{label}</td>
-        <td><input name="{key}" value="{value}" style="width:100%"></td>
-        <td style="color:#6b7280;font-size:12px">{html.escape(hint)}{' · ' + html.escape(extra) if extra else ''}</td></tr>"""
+        <td><input name="{key}" value="{html.escape(value)}" style="width:100%"></td>
+        <td style="color:#6b7280;font-size:12px">{html.escape(hint)} · работает значение: <b>{html.escape(source)}</b></td></tr>"""
 
     for key, label, hint in (
         ("sber_password", "Постоянный пароль userName", "Передаётся как password; транспортный пароль на prod сначала нужно сменить в СберБизнес"),
         ("sber_key", "API key / ключ подписи", "В прямом протоколе register.do не используется; не заменяет пароль userName"),
     ):
-        secret = settings_store.get_value(db, key)
-        secret_hint = (f"сохранено {settings_store.mask(secret)}" if secret else "не задан") + \
-                      (" · " + _env_hint(key) if _env_hint(key) else "")
+        secret, source = settings_store.resolve(db, key)
+        secret_hint = (f"сохранено {settings_store.mask(secret)}" if secret else "не задан")
         rows += f"""<tr><td>{label}</td>
-        <td><input name="{key}" type="password" value="" placeholder="{html.escape(settings_store.mask(secret) or 'не задан')}" style="width:100%"></td>
-        <td style="color:#6b7280;font-size:12px">{html.escape(hint)}. {html.escape(secret_hint)}. Пустое поле = оставить без изменений</td></tr>"""
+        <td><input name="{key}" type="password" value="" placeholder="{html.escape(secret_hint)}" style="width:100%"></td>
+        <td style="color:#6b7280;font-size:12px">{html.escape(hint)}. {html.escape(secret_hint)} · работает значение: <b>{html.escape(source)}</b>. Пустое поле = оставить без изменений</td></tr>"""
+
+    notes = settings_store.warnings(db)
+    notes_html = ""
+    if notes:
+        items = "".join(f"<li>{html.escape(n)}</li>" for n in notes)
+        notes_html = (f"<p style='margin:0 0 4px'><b style='color:#b45309'>На что похоже в конфигурации:</b></p>"
+                      f"<ul style='margin:0 0 12px;color:#b45309;font-size:13px'>{items}</ul>")
+
+    contour_name = sber_module.contour()
+    contour_color = {"prod": "#166534", "test": "#1d4ed8"}.get(contour_name, "#6b7280")
+    contour_line = (f"<p>Контур шлюза: <b style='color:{contour_color}'>{html.escape(contour_name.upper())}</b> "
+                    f"— <code>{html.escape(sber_module.base_url())}</code>. "
+                    f"Проверка TLS: <b>{html.escape(str(sber_module.verify_ssl()))}</b>.</p>")
+
+    diag = request.query_params.get("diag") if request else None
+    diag_html = ""
+    if diag:
+        diag_html = (f"<div class='card' style='background:#f8fafc;border:1px solid #cbd5e1'>"
+                     f"<b>Проверка доступа к шлюзу</b><pre style='white-space:pre-wrap;margin:8px 0 0'>"
+                     f"{html.escape(diag)}</pre></div>")
 
     body = f"""<h2>Настройки</h2>
+    {diag_html}
     <div class="card">
-    <p>Оплата через Сбербанк ({html.escape(sber_module.base_url())}): {flag_pay}. Письмо после покупки: {flag_mail}.</p>
+    {contour_line}
+    <p>Оплата через Сбербанк: {flag_pay}. Письмо после покупки: {flag_mail}.</p>
+    {notes_html}
     {warn}
     <form method="post" action="/admin/settings">
     <p><label><input type="checkbox" name="payments_enabled" {'checked' if pay_on else ''}> Оплата включена
@@ -646,12 +668,21 @@ def settings_page(login: str = Depends(current_admin), db: Session = Depends(get
     <table><tr><th style="width:220px">Параметр</th><th>Значение</th><th style="width:320px">Комментарий</th></tr>{rows}</table>
     <p><button type="submit">Сохранить</button></p>
     </form>
+    <form method="post" action="/admin/settings/diagnose" style="margin-top:4px">
+    <button type="submit" style="background:#334155">Проверить доступ к шлюзу</button>
+    <span style="color:#6b7280;font-size:12px"> — GET getOrderStatus.do с служебным номером: платёж не создаётся,
+    пароль в выводе не показывается</span>
+    </form>
     </div>
     <div class="card" style="color:#6b7280;font-size:13px">
     Значения хранятся в таблице <code>settings</code>; при пустом значении используется переменная
-    окружения (SBER_USER_NAME, SBER_PASSWORD, SBER_KEY, SBER_TERMINAL, SBER_KEY_ID, EMAIL_AFTER_PURCHASE,
-    SBER_PAYMENTS_ENABLED). Base URL шлюза — env <code>SBER_BASE_URL</code>
-    (по умолчанию {html.escape(sber_module.base_url())}). Секреты в логах маскируются.
+    окружения (SBER_USER_NAME или алиас SBER_USERNAME, SBER_PASSWORD, SBER_KEY, SBER_TERMINAL,
+    SBER_KEY_ID, EMAIL_AFTER_PURCHASE, SBER_PAYMENTS_ENABLED). Контур — env <code>SBER_BASE_URL</code>
+    (или алиас SBER_API_URL), сейчас {html.escape(sber_module.base_url())}.
+    TLS: <code>SBER_VERIFY_SSL</code> (false допустим только на тесте) и <code>SBER_CA_BUNDLE</code>
+    — путь к своему корневому сертификату, если боевой шлюз выдан центром, которого нет в образе.
+    Секреты в логах маскируются; в лог пишутся userName, merchantLogin, terminal, endpoint и источник
+    каждого значения.
     </div>"""
     return page("Настройки", body, login)
 
@@ -674,3 +705,26 @@ async def settings_save(request: Request, login: str = Depends(current_admin), d
                response="ok"))
     db.commit()
     return RedirectResponse("/admin/settings", status_code=302)
+
+
+@router.post("/settings/diagnose")
+async def settings_diagnose(login: str = Depends(current_admin), db: Session = Depends(get_db)):
+    """Диагностика доступа к шлюзу: TLS / сеть / учётные данные. Платёж не создаётся."""
+    report = sber_module.diagnose(db)
+    lines = [
+        f"контур: {report['contour']} ({report['base_url']})",
+        f"учётка задана: {'да' if report['configured'] else 'НЕТ'}",
+        f"вывод: {report['kind']} — {report['detail'] or 'без деталей'}",
+    ]
+    if report.get("errorCode"):
+        lines.append(f"errorCode шлюза: {report['errorCode']}")
+    if report["warnings"]:
+        lines.append("подозрительное в конфигурации:")
+        lines += [f"  • {w}" for w in report["warnings"]]
+    text = "\n".join(lines)
+
+    db.add(Log(text=f"ADMIN диагностика шлюза → {report['kind']}", url="/admin/settings/diagnose",
+               request=report["context"], response=text[:2000]))
+    db.commit()
+    # userName/terminal в строку запроса не кладём — только сам вердикт
+    return RedirectResponse(f"/admin/settings?diag={quote(text)}", status_code=302)

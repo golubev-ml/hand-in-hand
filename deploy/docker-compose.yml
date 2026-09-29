@@ -50,9 +50,15 @@ services:
       SBER_TERMINAL: ${SBER_TERMINAL:-}
       SBER_KEY_ID: ${SBER_KEY_ID:-}
       SBER_PAYMENTS_ENABLED: ${SBER_PAYMENTS_ENABLED:-}
+      # Боевой шлюз может быть выдан центром, которого нет в bundle certifi.
+      # SBER_CA_BUNDLE — путь к смонтированному корневому сертификату; либо
+      # SSL_CERT_FILE после пересборки образа с deploy/certs/*.crt. См. deploy/certs/README.md
+      SBER_CA_BUNDLE: ${SBER_CA_BUNDLE:-}
+      SSL_CERT_FILE: ${SSL_CERT_FILE:-}
     volumes:
       - uploads_data:/app/uploads
       - backups_data:/app/backup
+      - ./certs:/etc/sber-certs:ro
     depends_on:
       db:
         condition: service_healthy
