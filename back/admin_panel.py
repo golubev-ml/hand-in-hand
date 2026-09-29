@@ -1,6 +1,7 @@
 import json
 """Админка сайта: /admin. Чистый FastAPI, без сторонних админок."""
 import html
+import math
 import os
 import uuid
 from pathlib import Path
@@ -173,7 +174,9 @@ def pictures(login: str = Depends(current_admin), db: Session = Depends(get_db))
         title = html.escape(getattr(p, "title", "") or f"#{p.id}")
         author = html.escape(getattr(p, "author", "") or "—")
         age = getattr(p, "age", 0) or "—"
-        min_price = getattr(p, "min_price", 500) or 500
+        min_price = getattr(p, "min_price", None)
+        if min_price is None:
+            min_price = 500
         # "Продано за" — ищем цену по picture.id в items snapshot заказа
         sold_for = "—"
         meta[p.id] = {"title": getattr(p, "title", "") or f"#{p.id}", "img": p.image_path, "history": getattr(p, "history", "") or ""}
@@ -201,7 +204,7 @@ def pictures(login: str = Depends(current_admin), db: Session = Depends(get_db))
         <td contenteditable="true" data-field="title">{title}</td>
         <td contenteditable="true" data-field="author">{author}</td>
         <td contenteditable="true" data-field="age" style="max-width:60px">{age}</td>
-        <td contenteditable="true" data-field="min_price" style="max-width:80px">{int(min_price)}</td>
+        <td contenteditable="true" data-field="min_price" title="Нажмите, чтобы изменить минимальную цену в рублях" style="max-width:100px">{min_price:g} ₽</td>
         <td>
             <select onchange="changeStatus({p.id}, this)" data-prev="{p.status}">
                 <option {'selected' if p.status == 'available' else ''}>available</option>
@@ -219,7 +222,8 @@ def pictures(login: str = Depends(current_admin), db: Session = Depends(get_db))
         </td>
         </tr>"""
     body = f"""<h2>Рисунки</h2><div class="card"><table>
-    <tr><th>Превью</th><th>Название</th><th>Имя</th><th>Возраст</th><th>Мин.</th><th>Статус</th><th>Смена статуса</th><th>Продано за</th><th></th></tr>{tr}</table></div>
+    <tr><th>Превью</th><th>Название</th><th>Имя</th><th>Возраст</th><th>Мин. цена, ₽</th><th>Статус</th><th>Смена статуса</th><th>Продано за</th><th></th></tr>{tr}</table>
+    <p class="hint">Чтобы изменить минимальную цену, нажмите на сумму, введите цену в рублях и нажмите Enter или кликните вне поля.</p></div>
 <script type="application/json" id="hist-data">{json.dumps(meta, ensure_ascii=False)}</script>
 <div id="toast"></div>
 <script>
@@ -234,8 +238,9 @@ document.querySelectorAll('td[contenteditable]').forEach(td => {{
     async function save() {{
         const id = td.parentElement.dataset.id;
         const field = td.dataset.field;
-        const value = td.textContent.trim();
-        if (value === orig) return;
+        const value = td.textContent.replace(/\\s*₽\\s*$/, '').trim();
+        const unchanged = field === 'min_price' ? value + ' ₽' === orig : value === orig;
+        if (unchanged) return;
         try {{
             const r = await fetch(`/admin/pictures/${{id}}/update`, {{
                 method: 'POST', headers: {{'Content-Type':'application/json'}},
@@ -247,6 +252,7 @@ document.querySelectorAll('td[contenteditable]').forEach(td => {{
             }}
             td.classList.add('flash-ok');
             setTimeout(() => td.classList.remove('flash-ok'), 1000);
+            if (field === 'min_price') td.textContent = value + ' ₽';
             orig = td.textContent;
         }} catch (e) {{
             toast('Не удалось: ' + e.message, false);
@@ -340,8 +346,8 @@ async def picture_update(picture_id: int, request: Request, login: str = Depends
                 v = float(str(v).strip().replace(",", "."))
             except ValueError:
                 raise HTTPException(status_code=400, detail="Цена — число")
-            if v < 0:
-                raise HTTPException(status_code=400, detail="Цена ≥ 0")
+            if not math.isfinite(v) or v < 0:
+                raise HTTPException(status_code=400, detail="Цена должна быть неотрицательным числом")
             p.min_price = v
         elif k == "history":
             p.history = str(v)
@@ -379,7 +385,7 @@ def upload_form(login: str = Depends(current_admin)):
     <input name="author" placeholder="Имя ребёнка" maxlength="100" required style="width:100%"><br>
     <input name="age" type="number" min="1" max="18" placeholder="Возраст" required style="width:100%"><br>
     <textarea name="history" placeholder="История рисунка" style="width:100%" rows="3"></textarea><br>
-    <input name="price" type="number" step="0.01" value="0"><br>
+    <label>Минимальная цена, ₽<br><input name="min_price" type="number" min="0" step="0.01" value="500" required></label><br>
     <button>Сохранить</button></form></div>"""
     return page("Загрузка", body, login)
 
@@ -583,10 +589,10 @@ async def contact_status(contact_id: int, request: Request, login: str = Depends
 
 # ---------- настройки (HIH-9) ----------
 TEXT_SETTINGS = (
-    ("sber_user_name", "userName (логин шлюза)", "Используется в register.do/getOrderStatus.do"),
-    ("sber_merchant_login", "merchantLogin", "Не обязательен — шлётся в шлюз, если заполнен"),
-    ("sber_terminal", "Терминал", "Хранится, в шлюз пока не отправляется (уточнить у Сбера)"),
-    ("sber_key_id", "Key ID", "ID ключа подписи, если Сбер потребует проверку подписи"),
+    ("sber_user_name", "userName (API-логин)", "Отдельный для test и prod; обязателен в register.do и проверке статуса"),
+    ("sber_merchant_login", "merchantLogin", "Для прямого протокола не передаётся; нужен только отдельным сервисам управления ключами"),
+    ("sber_terminal", "Терминал", "Справочное поле; в запросы прямого протокола не отправляется"),
+    ("sber_key_id", "Key ID", "Справочное поле для ключа подписи; register.do его не использует"),
 )
 
 
@@ -619,8 +625,8 @@ def settings_page(login: str = Depends(current_admin), db: Session = Depends(get
         <td style="color:#6b7280;font-size:12px">{html.escape(hint)}{' · ' + html.escape(extra) if extra else ''}</td></tr>"""
 
     for key, label, hint in (
-        ("sber_password", "Пароль шлюза", "Передаётся как password в register.do/getOrderStatus.do"),
-        ("sber_key", "Ключ мерчанта (secret)", "Ключ подписи; отдельно от пароля шлюза"),
+        ("sber_password", "Постоянный пароль userName", "Передаётся как password; транспортный пароль на prod сначала нужно сменить в СберБизнес"),
+        ("sber_key", "API key / ключ подписи", "В прямом протоколе register.do не используется; не заменяет пароль userName"),
     ):
         secret = settings_store.get_value(db, key)
         secret_hint = (f"сохранено {settings_store.mask(secret)}" if secret else "не задан") + \
@@ -631,7 +637,7 @@ def settings_page(login: str = Depends(current_admin), db: Session = Depends(get
 
     body = f"""<h2>Настройки</h2>
     <div class="card">
-    <p>Оплата через Сбербанк (ecomtest-контур): {flag_pay}. Письмо после покупки: {flag_mail}.</p>
+    <p>Оплата через Сбербанк ({html.escape(sber_module.base_url())}): {flag_pay}. Письмо после покупки: {flag_mail}.</p>
     {warn}
     <form method="post" action="/admin/settings">
     <p><label><input type="checkbox" name="payments_enabled" {'checked' if pay_on else ''}> Оплата включена
