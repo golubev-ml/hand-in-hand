@@ -8,6 +8,14 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 DB_PATH = Path(__file__).resolve().parent / "database.db"
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL") or f"sqlite:///{DB_PATH}"
 
+# SQLAlchemy 2.1 changed the default PostgreSQL driver to psycopg (v3), while
+# this project intentionally installs psycopg2-binary. Keep plain postgresql://
+# deployment URLs pinned to the installed driver.
+if SQLALCHEMY_DATABASE_URL.startswith("postgresql://"):
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace(
+        "postgresql://", "postgresql+psycopg2://", 1
+    )
+
 connect_args = {}
 if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
     connect_args = {"check_same_thread": False}  # обязательно для SQLite
