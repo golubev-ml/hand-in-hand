@@ -35,6 +35,10 @@ services:
       MAIL_FROM: ${MAIL_FROM:-noreply@kraski-detstva.ru}
       # Основной домен: на него строятся returnUrl/failUrl для шлюза Сбера
       BASE_URL: ${BASE_URL:-https://hand-in-hand-kzn.ru}
+      # Карусель на лендинге читает GET /api/pictures с другого поддомена,
+      # поэтому оба домена окружения должны быть в allow-ориджинах.
+      # (Сами картинки грузятся тегом <img> и CORS не требуют.)
+      CORS_ORIGINS: ${SITE_URL:-https://hand-in-hand-kzn.ru},https://${LANDING_DOMAIN:-hand.hand-in-hand-kzn.ru}
       # HIH-9: прямой протокол шлюза. Бой — https://epay.sberbank.ru/ecomm/gw/partner/api/v1/
       SBER_BASE_URL: ${SBER_BASE_URL:-https://ecomtest.sberbank.ru/ecomm/gw/partner/api/v1/}
       SBER_VERIFY_SSL: ${SBER_VERIFY_SSL:-true}
@@ -46,9 +50,15 @@ services:
       SBER_TERMINAL: ${SBER_TERMINAL:-}
       SBER_KEY_ID: ${SBER_KEY_ID:-}
       SBER_PAYMENTS_ENABLED: ${SBER_PAYMENTS_ENABLED:-}
+      # Боевой шлюз может быть выдан центром, которого нет в bundle certifi.
+      # SBER_CA_BUNDLE — путь к смонтированному корневому сертификату; либо
+      # SSL_CERT_FILE после пересборки образа с deploy/certs/*.crt. См. deploy/certs/README.md
+      SBER_CA_BUNDLE: ${SBER_CA_BUNDLE:-}
+      SSL_CERT_FILE: ${SSL_CERT_FILE:-}
     volumes:
       - uploads_data:/app/uploads
       - backups_data:/app/backup
+      - ./certs:/etc/sber-certs:ro
     depends_on:
       db:
         condition: service_healthy
@@ -68,7 +78,12 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.frontend
       args:
-        VITE_YANDEX_METRIKA_ID: ${YANDEX_METRIKA_ID:-}
+        # METRIKA_ID — короткое имя из ТЗ, YANDEX_METRIKA_ID — штатное; приоритет у первого
+        VITE_YANDEX_METRIKA_ID: ${METRIKA_ID:-${YANDEX_METRIKA_ID:-}}
+        # домен для текстов-ссылок (условия использования); берётся из env-профиля
+        VITE_SITE_HOST: ${SITE_HOST:-}
+        # адрес лендинга для плашки «Галерея → Лендинг»
+        VITE_LANDING_URL: https://${LANDING_DOMAIN:-hand.hand-in-hand-kzn.ru}
     container_name: hand-in-hand-frontend
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
@@ -91,7 +106,8 @@ services:
     environment:
       SITE_URL: ${SITE_URL:-https://hand-in-hand-kzn.ru}
       SITE_HOST: ${SITE_HOST:-hand-in-hand-kzn.ru}
-      YANDEX_METRIKA_ID: ${YANDEX_METRIKA_ID:-}
+      # тот же алиас METRIKA_ID, что и для фронтенда: nginx подставит его в index.html
+      YANDEX_METRIKA_ID: ${METRIKA_ID:-${YANDEX_METRIKA_ID:-}}
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=${TRAEFIK_NETWORK:-deploy_web}"

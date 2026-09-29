@@ -16,6 +16,11 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    fs: {
+      // legal/terms.ru.html — общий текст условий для лендинга и галереи, лежит на
+      // уровень выше front/, поэтому в dev-режиме его тоже нужно отдавать
+      allow: ['..'],
+    },
     // в разработке запросы к API уходят на бэкенд
     proxy: {
       '/api': 'http://localhost:8000',

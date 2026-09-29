@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- traefik режет /landing на поддомене лендинга; base держит относительные пути
+       ассетов рабочими и при .../landing/terms.html, и при .../landing/terms.html/ -->
+  <base href="/landing/">
+  <meta name="description" content="Условия использования сайта фонда «Рука об руку»: пожертвования, онлайн-оплата СБП, Mir Pay, SberPay, покупка рисунков, cookies и Яндекс.Метрика.">
+  <meta name="robots" content="index, follow">
+  <title>Условия использования — АНО БП «Рука об руку»</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Страница условий использует палитру лендинга: синий #2268b1, розовый #de789d, крем #FBF3EA */
+    .legal-page { background: #FBF3EA; }
+    .legal-shell { max-width: 46rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+    .legal-top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+    .legal-back { color: #2268b1; font-weight: 700; text-decoration: none; }
+    .legal-back:hover { text-decoration: underline; }
+    .legal { color: #2b2118; }
+    .legal h1 { font-size: clamp(1.75rem, 4vw, 2.5rem); line-height: 1.2; margin: 0 0 .75rem; color: #2b2118; }
+    .legal h2 { font-size: 1.25rem; margin: 2.25rem 0 .75rem; color: #2268b1; }
+    .legal p, .legal li { line-height: 1.65; }
+    .legal ul { margin: 0 0 1rem; padding-left: 1.25rem; }
+    .legal li { margin-bottom: .35rem; }
+    .legal-list-plain { list-style: none; padding-left: 0; }
+    .legal-meta { color: #6b5b42; font-size: .95rem; margin-bottom: 1.25rem; }
+    .legal-lead { background: #fff; border-left: 4px solid #de789d; border-radius: 10px; padding: 1rem 1.15rem; font-weight: 600; }
+    .legal-nav { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1.5rem 0 0; padding: 0; list-style: none; }
+    .legal-nav a { display: inline-block; background: #fff; border: 1px solid rgba(34,104,177,.18); border-radius: 999px; padding: .35rem .7rem; font-size: .85rem; color: #2268b1; text-decoration: none; }
+    .legal-nav a:hover { background: #2268b1; color: #fff; }
+    .legal a { color: #2268b1; }
+    .legal-ref { word-break: break-word; }
+    .legal code { background: rgba(34,104,177,.08); border-radius: 4px; padding: .05rem .3rem; }
+    .legal-foot { margin-top: 3rem; padding-top: 1.25rem; border-top: 1px solid rgba(43,33,24,.12); color: #6b5b42; font-size: .9rem; }
+  </style>
+</head>
+<body class="legal-page">
+  <main class="legal-shell">
+    <div class="legal-top">
+      <a class="legal-back" href="index.html">&larr; На главную</a>
+      <span class="legal-meta">АНО БП «Рука об руку»</span>
+    </div>

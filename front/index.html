@@ -14,6 +14,9 @@
       (() => {
         const id = "%VITE_YANDEX_METRIKA_ID%";
         if (!/^\d+$/.test(id)) return;
+        // публикуем номер счётчика: reachGoal в приложении берёт его отсюда,
+        // и в коде не фигурирует ни один конкретный id
+        window.YM_ID = id;
         window.ym = window.ym || function () { (window.ym.a = window.ym.a || []).push(arguments); };
         window.ym.l = Date.now();
         const script = document.createElement("script");
