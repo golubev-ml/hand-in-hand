@@ -6,6 +6,7 @@ type ArtCategory = 'drawing' | 'painting' | 'digital'
 type FilterCategory = 'all' | ArtCategory | 'new'
 type SortKey = 'popular' | 'price-asc' | 'price-desc' | 'newest'
 type CheckoutStep = 'form' | 'payment' | 'success'
+type PaymentResult = 'success' | 'failed' | 'pending' | 'unknown'
 
 interface Artwork {
   id: number
@@ -995,6 +996,76 @@ function ContactSection() {
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 
+function PaymentResultPage({ result, onReturnHome }: { result: PaymentResult; onReturnHome: () => void }) {
+  const contentByResult = {
+    success: {
+      eyebrow: 'Оплата подтверждена',
+      title: 'Спасибо за поддержку',
+      text: 'Ваш заказ принят. Мы отправим письмо с деталями на указанный адрес электронной почты.',
+      symbol: '✓',
+      symbolClass: 'bg-[#E8F2EB] text-[#3F6E4C]',
+    },
+    failed: {
+      eyebrow: 'Оплата не завершена',
+      title: 'Деньги не списаны',
+      text: 'Рисунки снова доступны. Попробуйте оформить заказ ещё раз или свяжитесь с нами — мы поможем.',
+      symbol: '!',
+      symbolClass: 'bg-[#FCE8E5] text-[#A34D42]',
+    },
+    pending: {
+      eyebrow: 'Статус уточняется',
+      title: 'Платёж обрабатывается',
+      text: 'Банк ещё не подтвердил операцию. Мы пришлём письмо, как только получим подтверждение.',
+      symbol: '…',
+      symbolClass: 'bg-[#FFF1CF] text-[#8A641B]',
+    },
+    unknown: {
+      eyebrow: 'Не удалось найти заказ',
+      title: 'Платёж не найден',
+      text: 'Не получилось соотнести возврат с заказом. Пожалуйста, не оплачивайте заказ повторно, пока мы не проверим операцию.',
+      symbol: '!',
+      symbolClass: 'bg-[#FCE8E5] text-[#A34D42]',
+    },
+  }
+  const content = contentByResult[result]
+
+  return (
+    <main className="min-h-screen bg-[#FEFAF4] text-[#2C2416] flex flex-col">
+      <header className="h-20 border-b border-[#E8DCC8] bg-[#FFFCF7]">
+        <div className="max-w-6xl h-full mx-auto px-5 sm:px-6 flex items-center">
+          <button onClick={onReturnHome} className="flex items-center gap-3 text-left" aria-label="Вернуться на главную">
+            <img src="/logo.png" alt="Логотип «Искусство чтобы жить»" className="w-11 h-11 rounded-full object-cover" />
+            <span className="font-serif text-lg font-bold text-[#4A7C59]">Искусство чтобы жить</span>
+          </button>
+        </div>
+      </header>
+
+      <section className="flex-1 flex items-center justify-center px-5 py-12 sm:py-20">
+        <div className="w-full max-w-xl rounded-[28px] border border-[#E8DCC8] bg-white px-7 py-10 sm:px-12 sm:py-14 text-center shadow-[0_18px_60px_rgba(74,57,31,0.10)]">
+          <div className={`mx-auto mb-7 flex h-16 w-16 items-center justify-center rounded-full font-serif text-3xl font-bold ${content.symbolClass}`}>
+            {content.symbol}
+          </div>
+          <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#A67C35]">{content.eyebrow}</p>
+          <h1 className="mt-3 font-serif text-4xl leading-tight text-[#2C2416] sm:text-5xl">{content.title}</h1>
+          <p className="mx-auto mt-5 max-w-md text-base leading-relaxed text-[#6B5B42]">{content.text}</p>
+
+          {result === 'unknown' && (
+            <div className="mt-7 rounded-2xl bg-[#F8F3EA] px-5 py-4 text-left text-sm leading-relaxed text-[#5B4A32]">
+              <p className="font-semibold text-[#2C2416]">Связаться с фондом</p>
+              <a href="mailto:rukaobruku.fond@gmail.com" className="mt-1 block underline decoration-[#CBAF7A] underline-offset-4 hover:text-[#A67C35]">rukaobruku.fond@gmail.com</a>
+              <a href="tel:+79870072252" className="mt-1 block underline decoration-[#CBAF7A] underline-offset-4 hover:text-[#A67C35]">+7 (987) 007-22-52</a>
+            </div>
+          )}
+
+          <button onClick={onReturnHome} className="mt-8 rounded-full bg-[#4A7C59] px-7 py-3 text-sm font-semibold text-white transition hover:bg-[#3C6949]">
+            Вернуться на главную
+          </button>
+        </div>
+      </section>
+    </main>
+  )
+}
+
 export default function App() {
   const [artworks, setArtworks] = useState<Artwork[]>(ARTWORKS)
   const [cart, setCart] = useState<CartItem[]>([])
@@ -1015,14 +1086,16 @@ export default function App() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   // HIH-9: результат возврата из платёжного шлюза (?payment=success|failed|pending|unknown)
-  const [paymentNotice, setPaymentNotice] = useState<string | null>(null)
+  const [paymentNotice, setPaymentNotice] = useState<PaymentResult | null>(() => {
+    const result = new URLSearchParams(window.location.search).get('payment')
+    return result === 'success' || result === 'failed' || result === 'pending' || result === 'unknown' ? result : null
+  })
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const result = params.get('payment')
     if (!result) return
-    setPaymentNotice(result)
-    // чистим адрес, чтобы баннер не показывался при обновлении страницы
+    // Убираем служебный параметр из адреса, но сам результат остаётся отдельной страницей.
     window.history.replaceState({}, '', window.location.pathname + window.location.hash)
   }, [])
 
@@ -1102,37 +1175,12 @@ export default function App() {
 
   const featured = artworks.filter(a => a.isFeatured).slice(0, 3)
 
+  if (paymentNotice) {
+    return <PaymentResultPage result={paymentNotice} onReturnHome={() => setPaymentNotice(null)} />
+  }
+
   return (
     <div className="min-h-screen bg-[#FEFAF4]">
-
-      {/* ── Результат возврата из платёжного шлюза (HIH-9) ── */}
-      {paymentNotice && (() => {
-        const copy = {
-          success: { title: 'Оплата прошла — спасибо!', text: 'Заказ принят, письмо с деталями уже летит к вам. Оригиналы рисунков можно распечатать из вложений письма.', tone: '#E8F2EB', accent: '#4A7C59' },
-          failed: { title: 'Оплата не завершена', text: 'Деньги не списаны, картины вернулись в продажу. Попробуйте другой способ оплаты или напишите фонду.', tone: '#FEE2E2', accent: '#991B1B' },
-          pending: { title: 'Платёж обрабатывается', text: 'Банк ещё не подтвердил операцию. Как только подтвердит — заказ станет оплаченным, а мы пришлём письмо.', tone: '#FFF7E0', accent: '#8A6D3B' },
-          unknown: { title: 'Платёж не найден', text: 'Не получилось соотнести возврат с заказом. Напишите нам: rukaobruku.fond@gmail.com или +7 (987) 007-22-52.', tone: '#F5EFE3', accent: '#6B5B42' },
-        }[paymentNotice] ?? {
-          title: 'Возврат из банка', text: 'Статус оплаты уточняется.', tone: '#F5EFE3', accent: '#6B5B42',
-        }
-        return (
-          <div className="relative z-30 mt-16 px-4 pt-4">
-            <div className="max-w-4xl mx-auto rounded-2xl px-5 py-4 flex items-start gap-4 border border-[#E8DCC8]" style={{ background: copy.tone }}>
-              <div className="flex-1">
-                <p className="font-serif font-bold" style={{ color: copy.accent }}>{copy.title}</p>
-                <p className="text-sm text-[#6B5B42] mt-1 leading-relaxed">{copy.text}</p>
-              </div>
-              <button
-                onClick={() => setPaymentNotice(null)}
-                aria-label="Закрыть"
-                className="text-[#6B5B42] hover:text-[#2C2416] px-1"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-        )
-      })()}
 
       {/* ── Navigation ── */}
       <nav
