@@ -8,7 +8,7 @@ from sqlalchemy import engine_from_config, pool
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from database import Base            # noqa: E402
+from database import Base, SQLALCHEMY_DATABASE_URL  # noqa: E402
 from models import (                                        # noqa: E402,F401
     ContactMessage, Donation, Log, Manager, Order, Picture, Setting,
 )
@@ -21,7 +21,7 @@ target_metadata = Base.metadata
 
 
 def get_url() -> str:
-    return os.getenv("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+    return SQLALCHEMY_DATABASE_URL
 
 
 def run_migrations_offline() -> None:
