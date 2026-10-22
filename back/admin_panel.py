@@ -648,11 +648,48 @@ def settings_page(request: Request, login: str = Depends(current_admin), db: Ses
                     f"Проверка TLS: <b>{html.escape(str(sber_module.verify_ssl()))}</b>.</p>")
 
     diag = request.query_params.get("diag") if request else None
+    diag_kind = request.query_params.get("diag_kind") if request else None
     diag_html = ""
     if diag:
+        auth_help = ""
+        if diag_kind == "auth":
+            auth_help = f"""
+            <div style='margin-top:12px;padding:12px;background:#fff7ed;border-left:4px solid #ea580c'>
+            <b>Что делать при FAIL_PASSWORD — инструкция для владельца кабинета СберБизнес</b>
+            <p style='margin:8px 0'>Это должен выполнить директор фонда или сотрудник, у которого есть
+            права на интернет-эквайринг в СберБизнес. Доступ к сайту или серверу не нужен.</p>
+            <ol style='margin:8px 0 8px 20px;padding:0'>
+              <li>Откройте официальную инструкцию Сбера
+                <a href='{html.escape(sber_module.PASSWORD_RESET_HELP_URL)}' target='_blank' rel='noopener'>
+                «Сброс пароля от шлюза и генерация API-key»</a> и войдите в СберБизнес.</li>
+              <li>Выберите организацию фонда и подключённый <b>боевой</b> интернет-эквайринг.</li>
+              <li>Откройте реквизиты подключения или настройки платёжного шлюза. Найдите
+                <b>логин шлюза</b> (API-логин, в запросах он называется <code>userName</code>).
+                Скопируйте его без пробелов.</li>
+              <li>Выберите действие сброса/установки пароля шлюза и подтвердите операцию так, как
+                попросит СберБизнес. Скопируйте показанный пароль сразу и без пробелов.</li>
+              <li>Если Сбер выдал <b>временный</b> пароль, на той же странице инструкции замените
+                его на постоянный. Если потребуется придумать пароль: не менее 18 символов,
+                минимум одна заглавная латинская буква и одна цифра.</li>
+              <li>Передайте техническому специалисту безопасным способом только две строки:
+                <b>логин шлюза (userName)</b> и <b>постоянный пароль шлюза</b>. Не отправляйте
+                пароль от входа в СберБизнес.</li>
+              <li>Технический специалист сохранит эти две строки ниже и нажмёт
+                «Проверить доступ к шлюзу». Ответ «заказ не найден» для служебного номера означает,
+                что Сбер принял учётные данные.</li>
+            </ol>
+            <p style='margin:8px 0'><b>Если пункта сброса нет или не хватает прав:</b> ответьте
+            поддержке Сбера в существующем обращении: «Просим сбросить пароль боевого платёжного
+            шлюза и выдать временный пароль для API-логина фонда». После получения временного
+            пароля вернитесь к шагу 5.</p>
+            <span style='color:#7c2d12;font-size:13px'>Тестовая и боевая учётки разные. Если пароль
+            содержит <code>$</code>, кавычки или другие специальные символы, не изменяйте их.
+            Технический специалист сохранит пароль здесь, в админке, а не в файле
+            <code>.env</code>.</span>
+            </div>"""
         diag_html = (f"<div class='card' style='background:#f8fafc;border:1px solid #cbd5e1'>"
                      f"<b>Проверка доступа к шлюзу</b><pre style='white-space:pre-wrap;margin:8px 0 0'>"
-                     f"{html.escape(diag)}</pre></div>")
+                     f"{html.escape(diag)}</pre>{auth_help}</div>")
 
     body = f"""<h2>Настройки</h2>
     {diag_html}
@@ -727,4 +764,7 @@ async def settings_diagnose(login: str = Depends(current_admin), db: Session = D
                request=report["context"], response=text[:2000]))
     db.commit()
     # userName/terminal в строку запроса не кладём — только сам вердикт
-    return RedirectResponse(f"/admin/settings?diag={quote(text)}", status_code=302)
+    return RedirectResponse(
+        f"/admin/settings?diag={quote(text)}&diag_kind={quote(report['kind'])}",
+        status_code=302,
+    )

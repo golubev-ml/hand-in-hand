@@ -35,6 +35,7 @@ import settings_store
 
 TEST_BASE_URL = "https://ecomtest.sberbank.ru/ecomm/gw/partner/api/v1/"
 PROD_BASE_URL = "https://epay.sberbank.ru/ecomm/gw/partner/api/v1/"
+PASSWORD_RESET_HELP_URL = "https://www.sberbank.ru/help/business/sbbol/acquiring/work/100667"
 RUSSIAN_TRUSTED_ROOT_CA = Path(__file__).resolve().parents[1] / "certs" / "russian_trusted_root_ca.pem"
 
 CURRENCY_RUB = 643
@@ -137,6 +138,14 @@ def describe(db=None, creds=None) -> str:
 # Признаки того, что шлюз ругается именно на учётные данные (а не на несуществующий заказ).
 AUTH_HINTS = ("парол", "password", "аутент", "не авториз", "unauthoriz", "access denied",
               "incorrect", "invalid user", "неверн", "forbidden")
+AUTH_ERROR_CODES = {"FAIL_PASSWORD"}
+
+
+def is_auth_error(code="", message="") -> bool:
+    """Ошибка относится к учётке, даже если шлюз не прислал понятный текст."""
+    normalized_code = str(code or "").strip().upper()
+    normalized_message = str(message or "").lower()
+    return normalized_code in AUTH_ERROR_CODES or any(h in normalized_message for h in AUTH_HINTS)
 
 
 def diagnose(db=None) -> dict:
@@ -175,9 +184,10 @@ def diagnose(db=None) -> dict:
     info["detail"] = f"errorCode={code or '—'} {message or 'без сообщения'}"[:500]
     if not err:
         info.update(ok=True, kind="answered", detail="шлюз ответил без ошибки — доступ есть")
-    elif any(h in message.lower() for h in AUTH_HINTS):
+    elif is_auth_error(code, message):
         info["kind"] = "auth"
-        info["detail"] += " — похоже на неверные учётные данные этого контура"
+        info["detail"] += " — шлюз отклонил userName или пароль этого контура"
+        info["help_url"] = PASSWORD_RESET_HELP_URL
     else:
         info.update(ok=True, kind="answered",
                     detail=info["detail"] + " — шлюз отвечает и пускает по учётке (ошибка по существу запроса)")

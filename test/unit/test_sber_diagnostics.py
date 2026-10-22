@@ -162,6 +162,12 @@ class TestDiagnose:
         assert report["kind"] == "auth" and report["ok"] is False
         assert "215" in report["detail"]
 
+    def test_fail_password_code_is_auth_even_without_explanation(self, env):
+        self._with({"errorCode": "FAIL_PASSWORD"})
+        report = sber.diagnose(None)
+        assert report["kind"] == "auth" and report["ok"] is False
+        assert report["help_url"] == sber.PASSWORD_RESET_HELP_URL
+
     def test_order_not_found_means_credentials_are_fine(self, env):
         self._with({"errorCode": "105", "errorMessage": "Заказ с таким номером не найден"})
         report = sber.diagnose(None)
@@ -257,6 +263,8 @@ class TestAdminDiagnosticsUi:
         assert "auth" in r.headers["location"]
         page = c.get(r.headers["location"]).text
         assert "Неверное имя пользователя или пароль" in page
+        assert "Сброс пароля от шлюза и генерация API-key" in page
+        assert sber.PASSWORD_RESET_HELP_URL in page
         assert "sup3r$ecret" not in page
 
         db = Session()
