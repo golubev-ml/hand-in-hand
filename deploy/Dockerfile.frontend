@@ -12,7 +12,7 @@ ARG VITE_LANDING_URL=""
 ENV VITE_YANDEX_METRIKA_ID=${VITE_YANDEX_METRIKA_ID}
 ENV VITE_SITE_HOST=${VITE_SITE_HOST}
 ENV VITE_LANDING_URL=${VITE_LANDING_URL}
-RUN npm run build
+RUN npm run typecheck && npm run build
 
 FROM nginx:1.27-alpine
 COPY --from=build /app/front/dist /usr/share/nginx/html
