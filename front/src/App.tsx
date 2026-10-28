@@ -693,11 +693,11 @@ function CheckoutModal({
                   {step === 'form' ? 'Оформление заказа' : 'Оплата'}
                 </h2>
                 <div className="flex gap-2 mt-2">
-                  {(['form', 'payment'] as const).map((s, i) => (
+                  {(['form', 'payment'] as const).map((s) => (
                     <div
                       key={s}
                       className={`h-1 rounded-full transition-all ${
-                        step === s ? 'w-8 bg-[#4A7C59]' : step === 'success' || (s === 'form' && step === 'payment') ? 'w-6 bg-[#7AAD87]' : 'w-6 bg-[#E8DCC8]'
+                        step === s ? 'w-8 bg-[#4A7C59]' : s === 'form' && step === 'payment' ? 'w-6 bg-[#7AAD87]' : 'w-6 bg-[#E8DCC8]'
                       }`}
                     />
                   ))}
