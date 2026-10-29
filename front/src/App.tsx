@@ -33,123 +33,9 @@ interface CartItem {
 
 // ─── Data ────────────────────────────────────────────────────────────────────
 
-const ARTWORKS: Artwork[] = [
-  {
-    id: 1,
-    title: 'Весенний лес',
-    author: 'Маша К.',
-    age: 8,
-    category: 'painting',
-    price: 2500,
-    description: 'Акварельный пейзаж с яркими весенними красками. Маша передала настроение первых тёплых дней через нежные переходы зелёного и голубого.',
-    img: 'https://images.unsplash.com/photo-1560421683-6856ea585c78?w=700&h=560&fit=crop&auto=format',
-    isNew: true,
-    isFeatured: true,
-    story: 'Маша нарисовала этот лес после прогулки с мамой в парке. Она сказала: «Я хочу, чтобы люди тоже почувствовали этот запах травы».',
-    popularity: 95,
-  },
-  {
-    id: 2,
-    title: 'Мой дом',
-    author: 'Артём С.',
-    age: 7,
-    category: 'drawing',
-    price: 1800,
-    description: 'Простой и трогательный рисунок цветными карандашами. Дом, семья и солнце — главное, что важно в жизни.',
-    img: 'https://images.unsplash.com/photo-1573020568125-d15af9c3e777?w=700&h=560&fit=crop&auto=format',
-    isNew: false,
-    isFeatured: true,
-    story: 'Артём из небольшого городка в Ярославской области. Это его первый рисунок, который он решился показать другим людям. Участие в выставке изменило его.',
-    popularity: 88,
-  },
-  {
-    id: 3,
-    title: 'Город будущего',
-    author: 'Дима Р.',
-    age: 12,
-    category: 'digital',
-    price: 3500,
-    description: 'Цифровая иллюстрация с детальным изображением фантастического города с летающими машинами и зелёными башнями.',
-    img: 'https://images.unsplash.com/photo-1597863881769-8d8ff8ab8b2a?w=700&h=560&fit=crop&auto=format',
-    isNew: true,
-    isFeatured: true,
-    story: 'Дима хочет стать архитектором. Он несколько месяцев учился рисовать на планшете и создал этот удивительный мир из нуля.',
-    popularity: 92,
-  },
-  {
-    id: 4,
-    title: 'Бабочка в саду',
-    author: 'Аня Л.',
-    age: 9,
-    category: 'painting',
-    price: 2200,
-    description: 'Гуашь на картоне. Яркая бабочка среди цветов — воплощение детской радости и свободы.',
-    img: 'https://images.unsplash.com/photo-1666710988451-ba4450498967?w=700&h=560&fit=crop&auto=format',
-    isNew: false,
-    isFeatured: false,
-    story: 'Аня увлекается энтомологией. Она знает названия сотен бабочек и мечтает нарисовать их всех.',
-    popularity: 75,
-  },
-  {
-    id: 5,
-    title: 'Зимний вечер',
-    author: 'Лена В.',
-    age: 11,
-    category: 'painting',
-    price: 3000,
-    description: 'Пастель на тонированной бумаге. Тихий зимний вечер, фонари и следы на снегу.',
-    img: 'https://images.unsplash.com/photo-1510832842230-87253f48d74f?w=700&h=560&fit=crop&auto=format',
-    isNew: true,
-    isFeatured: false,
-    story: 'Лена живёт в маленьком городке в Сибири. Снег для неё — это тишина и покой, которые она передаёт в своих работах.',
-    popularity: 81,
-  },
-  {
-    id: 6,
-    title: 'Радужный конь',
-    author: 'Миша Ф.',
-    age: 6,
-    category: 'drawing',
-    price: 1500,
-    description: 'Фломастеры на бумаге. Самый радостный конь на свете, нарисованный самым весёлым автором.',
-    img: 'https://images.unsplash.com/photo-1614712201488-9942af86b87b?w=700&h=560&fit=crop&auto=format',
-    isNew: false,
-    isFeatured: false,
-    story: 'Миша — самый младший участник нашей программы. Он рисует каждый день и хочет стать художником, «как Ван Гог».',
-    popularity: 70,
-  },
-  {
-    id: 7,
-    title: 'Портрет бабушки',
-    author: 'Катя Н.',
-    age: 10,
-    category: 'drawing',
-    price: 2800,
-    description: 'Простой карандаш, сложное чувство. Катя нарисовала портрет бабушки с такой нежностью, что он выглядит как настоящее произведение искусства.',
-    img: 'https://images.unsplash.com/photo-1597116868150-099875391584?w=700&h=560&fit=crop&auto=format',
-    isNew: false,
-    isFeatured: false,
-    story: 'Катя говорит, что бабушка — её самый важный человек. «Я хочу, чтобы она видела себя такой, какой вижу её я».',
-    popularity: 90,
-  },
-  {
-    id: 8,
-    title: 'Океан мечты',
-    author: 'Саша П.',
-    age: 13,
-    category: 'digital',
-    price: 4200,
-    description: 'Цифровая живопись с глубоким синим морем, светящимися медузами и загадочными глубинами.',
-    img: 'https://images.unsplash.com/photo-1536221993589-9edbbca2c7fc?w=700&h=560&fit=crop&auto=format',
-    isNew: true,
-    isFeatured: false,
-    story: 'Саша никогда не видел моря. Он создаёт его из фантазии и книг — и оно получается невероятным.',
-    popularity: 86,
-  },
-]
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
+// Демонстрационные работы убраны: галерея загружает только данные с API.
+const ARTWORKS: Artwork[] = []
 function fmt(p: number) {
   return p.toLocaleString('ru-RU') + ' ₽'
 }
@@ -175,9 +61,9 @@ function ymGoal(name: string, params?: Record<string, string | number>) {
 }
 
 const FOOTER_INFO: Record<string, string[]> = {
-  'О нас': ['Фонд «Искусство чтобы жить» основан в 2012 году группой педагогов и художников. Мы помогаем детям из малообеспеченных семей, сиротам и детям с особенностями развития находить себя через творчество.', 'Раздел наполняется командой фонда.'],
-  'Наши проекты': ['Студии рисунка в восьми городах России, бесплатные материалы и занятия для всех детей.', 'Раздел наполняется командой фонда.'],
-  'Отчёты': ['Здесь будут публиковаться годовые отчёты фонда: финансы, программы, результаты.', 'Раздел наполняется командой фонда.'],
+  'О нас': ['Фонд «Искусство чтобы жить» основан в 2012 году группой педагогов и художников. Мы помогаем детям из малообеспеченных семей, сиротам и детям с особенностями развития находить себя через творчество.'],
+  'Наши проекты': ['Студии рисунка в восьми городах России, бесплатные материалы и занятия для всех детей.'],
+  'Отчёты': ['Здесь будут публиковаться годовые отчёты фонда: финансы, программы, результаты.'],
   'Реквизиты': [
     'Автономная некоммерческая организация поддержки благополучия детей «Рука об руку» (АНО БП «Рука об руками»).',
     'Руководитель: Алина Ахмадеева.',
@@ -188,15 +74,15 @@ const FOOTER_INFO: Record<string, string[]> = {
     'Телефон: +7 (987) 007-22-52.',
     'E-mail: rukaobruku.fond@gmail.com.',
   ],
-  'Партнёры': ['Мы сотрудничаем с галереями, школами искусства и компаниями, которые поддерживают детское творчество.', 'Раздел наполняется командой фонда.'],
-  'Все работы': ['Полная галерея работ наших студий: живопись, рисунки и цифровое искусство.', 'Раздел наполняется командой фонда.'],
-  'Живопись': ['Подборка живописных работ студентов.', 'Раздел наполняется командой фонда.'],
-  'Рисунки': ['Подборка графических работ студентов.', 'Раздел наполняется командой фонда.'],
-  'Цифровое искусство': ['Подборка работ, созданных в цифровых техниках.', 'Раздел наполняется командой фонда.'],
-  'Пожертвовать': ['Ваше пожертвование идёт на материалы, занятия и выставки для детей. 30% с каждой продажи также возвращается в фонд.', 'Раздел наполняется командой фонда.'],
-  'Купить работу': ['Покупая работу, вы поддерживаете ребёнка-автора и фонд. Оформление заказа занимает пару минут.', 'Раздел наполняется командой фонда.'],
-  'Стать волонтёром': ['Мы ищем волонтёров для занятий, выставок и организации мероприятий.', 'Раздел наполняется командой фонда.'],
-  'Корпоративное партнёрство': ['Программы для компаний: благотворительные выставки, закупка работ, волонтёрские дни.', 'Раздел наполняется командой фонда.'],
+  'Партнёры': ['Мы сотрудничаем с галереями, школами искусства и компаниями, которые поддерживают детское творчество.'],
+  'Все работы': ['Полная галерея работ наших студий: живопись, рисунки и цифровое искусство.'],
+  'Живопись': ['Подборка живописных работ студентов.'],
+  'Рисунки': ['Подборка графических работ студентов.'],
+  'Цифровое искусство': ['Подборка работ, созданных в цифровых техниках.'],
+  'Пожертвовать': ['Ваше пожертвование идёт на материалы, занятия и выставки для детей. 30% с каждой продажи также возвращается в фонд.'],
+  'Купить работу': ['Покупая работу, вы поддерживаете ребёнка-автора и фонд. Оформление заказа занимает пару минут.'],
+  'Стать волонтёром': ['Мы ищем волонтёров для занятий, выставок и организации мероприятий.'],
+  'Корпоративное партнёрство': ['Программы для компаний: благотворительные выставки, закупка работ, волонтёрские дни.'],
 }
 
 const CATEGORY_LABELS: Record<FilterCategory, string> = {
@@ -693,11 +579,11 @@ function CheckoutModal({
                   {step === 'form' ? 'Оформление заказа' : 'Оплата'}
                 </h2>
                 <div className="flex gap-2 mt-2">
-                  {(['form', 'payment'] as const).map((s, i) => (
+                  {(['form', 'payment'] as const).map((s) => (
                     <div
                       key={s}
                       className={`h-1 rounded-full transition-all ${
-                        step === s ? 'w-8 bg-[#4A7C59]' : step === 'success' || (s === 'form' && step === 'payment') ? 'w-6 bg-[#7AAD87]' : 'w-6 bg-[#E8DCC8]'
+                        step === s ? 'w-8 bg-[#4A7C59]' : s === 'form' && step === 'payment' ? 'w-6 bg-[#7AAD87]' : 'w-6 bg-[#E8DCC8]'
                       }`}
                     />
                   ))}
@@ -892,20 +778,7 @@ function DonationSection() {
         >
           {donated ? '💛 Спасибо за вашу поддержку!' : `Пожертвовать ${finalAmount > 0 ? fmt(finalAmount) : ''}`}
         </button>
-
-        <div className="grid grid-cols-3 gap-6 mt-14 pt-10 border-t border-white/10">
-          {[
-            { num: '847', label: 'детей поддержаны' },
-            { num: '2 340', label: 'работ продано' },
-            { num: '4.2 млн', label: 'рублей собрано' },
-          ].map(s => (
-            <div key={s.label}>
-              <div className="font-serif text-3xl text-[#D4A853]">{s.num}</div>
-              <div className="text-[#C8B89A] text-sm mt-1">{s.label}</div>
-            </div>
-          ))}
         </div>
-      </div>
     </section>
   )
 }
@@ -1230,7 +1103,9 @@ function PaymentResultPage({ result, onReturnHome }: { result: PaymentResult; on
 }
 
 export default function App() {
-  const [artworks, setArtworks] = useState<Artwork[]>(ARTWORKS)
+  const [artworks, setArtworks] = useState<Artwork[]>([])
+  const [picturesLoading, setPicturesLoading] = useState(true)
+  const [picturesError, setPicturesError] = useState(false)
   const [cart, setCart] = useState<CartItem[]>([])
 
   function handlePriceChange(id: number, price: number) {
@@ -1282,20 +1157,28 @@ export default function App() {
 
   useEffect(() => {
     const controller = new AbortController()
+    setPicturesLoading(true)
+    setPicturesError(false)
 
     fetch('/api/pictures', { signal: controller.signal })
       .then(response => {
         if (!response.ok) throw new Error(`Pictures API returned ${response.status}`)
         return response.json() as Promise<Artwork[]>
       })
-      .then(pictures => setArtworks(pictures))
+      .then(pictures => {
+        setArtworks(pictures)
+        setPicturesLoading(false)
+      })
       .catch(error => {
         if (error instanceof DOMException && error.name === 'AbortError') return
         console.error('Failed to load pictures:', error)
+        setPicturesError(true)
+        setPicturesLoading(false)
       })
 
     return () => controller.abort()
   }, [])
+
 
   const cartCount = cart.reduce((s, i) => s + i.qty, 0)
   const cartTotal = cart.reduce((s, i) => s + i.artwork.price * i.qty, 0)
@@ -1500,23 +1383,6 @@ export default function App() {
         </div>
       </section>
 
-      {/* ── Stats bar ── */}
-      <div className="bg-white border-b border-[#E8DCC8]">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-2 sm:grid-cols-4 gap-6 divide-x divide-[#E8DCC8]">
-          {[
-            { num: '847', label: 'детей в программе' },
-            { num: '2 340', label: 'работ в галерее' },
-            { num: '12', label: 'лет работаем' },
-            { num: '4.2 млн ₽', label: 'собрано за год' },
-          ].map((s, i) => (
-            <div key={s.label} className={`text-center ${i > 0 ? 'pl-6' : ''}`}>
-              <div className="font-serif text-2xl sm:text-3xl text-[#4A7C59]">{s.num}</div>
-              <div className="text-xs sm:text-sm text-[#A89070] mt-0.5">{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* ── About ── */}
       <section id="about" className="py-20 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto grid md:grid-cols-2 gap-16 items-center">
@@ -1566,7 +1432,7 @@ export default function App() {
       </section>
 
       {/* ── Featured works ── */}
-      <section className="py-16 px-4 sm:px-6 bg-[#F5EFE3]">
+      {featured.length > 0 && (<section className="py-16 px-4 sm:px-6 bg-[#F5EFE3]">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-end justify-between mb-10">
             <div>
@@ -1595,6 +1461,7 @@ export default function App() {
         </div>
       </section>
 
+      )}
       {/* ── Full Gallery ── */}
       <section id="gallery" className="py-20 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto">
@@ -1609,25 +1476,50 @@ export default function App() {
           {/* Filters & Sort */}
 
           {/* Grid */}
-          <div className="gallery-grid">
-            {filteredSorted.map(artwork => (
-              <ArtworkCard
-                key={artwork.id}
-                artwork={artwork}
-                onView={() => setSelectedArtwork(artwork)}
-                onAdd={() => addToCart(artwork)}
-                onBuy={handleBuy}
-                inCart={cart.some(i => i.artwork.id === artwork.id)}
-              />
-            ))}
-          </div>
-
-          {filteredSorted.length === 0 && (
+          {picturesLoading && (
             <div className="text-center py-20 text-[#A89070]">
               <div className="text-4xl mb-3">🎨</div>
-              <p className="font-serif text-xl">Работ не найдено</p>
-              <p className="text-sm mt-1">Попробуйте другой фильтр</p>
+              <p className="font-serif text-xl">Загружаем галерею</p>
+              <p className="text-sm mt-1">Пожалуйста, подождите</p>
             </div>
+          )}
+
+          {picturesError && (
+            <div className="text-center py-20 text-[#A89070]">
+              <div className="text-4xl mb-3">⚠️</div>
+              <p className="font-serif text-xl">Не удалось загрузить галерею</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-4 inline-flex items-center gap-2 bg-[#4A7C59] text-white px-6 py-3 rounded-2xl font-semibold hover:bg-[#3D6649] transition-colors"
+              >
+                Попробовать снова
+              </button>
+            </div>
+          )}
+
+          {!picturesLoading && !picturesError && (
+            <>
+              <div className="gallery-grid">
+                {filteredSorted.map(artwork => (
+                  <ArtworkCard
+                    key={artwork.id}
+                    artwork={artwork}
+                    onView={() => setSelectedArtwork(artwork)}
+                    onAdd={() => addToCart(artwork)}
+                    onBuy={handleBuy}
+                    inCart={cart.some(i => i.artwork.id === artwork.id)}
+                  />
+                ))}
+              </div>
+
+              {filteredSorted.length === 0 && (
+                <div className="text-center py-20 text-[#A89070]">
+                  <div className="text-4xl mb-3">🎨</div>
+                  <p className="font-serif text-xl">Галерея пуста</p>
+                  <p className="text-sm mt-1">Пока не добавлено ни одной работы</p>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
@@ -1697,7 +1589,7 @@ export default function App() {
               <h3 className="font-serif text-2xl text-[#2C2416]">{footerInfo}</h3>
               <button onClick={() => setFooterInfo(null)} className="text-[#6B5B42] hover:text-[#2C2416] text-2xl leading-none" aria-label="Закрыть">×</button>
             </div>
-            {(FOOTER_INFO[footerInfo] || ['Раздел наполняется командой фонда.']).map((par, i) => (
+            {(FOOTER_INFO[footerInfo] || []).map((par, i) => (
               <p key={i} className="text-[#6B5B42] leading-relaxed mb-4">{par}</p>
             ))}
           </div>
